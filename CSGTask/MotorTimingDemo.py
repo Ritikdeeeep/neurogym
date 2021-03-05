@@ -27,6 +27,7 @@ kwargs = {'training': False}
 env_plot = gym.make(task, **kwargs)
 env_data = plotting.run_env(env_plot, num_steps=3500, num_trials=8, def_act=0)
 
+# Add additional plot for objective
 fig, axs = plt.subplots(2, sharex=True, sharey=True)
 fig.suptitle('CSG Input')
 plt.xlabel("Time")
@@ -44,13 +45,12 @@ env_plot.close()
 
 # Run Env
 print("Run Environment")
-repeat = 5
 conditions = 8
 cycle = 1
 
-kwargs = {'training': True, 'batchSize': repeat}
+kwargs = {'training': True}
 env_run = gym.make(task, **kwargs)
-for i_episode in range((repeat*conditions*cycle)):
+for i_episode in range(conditions*cycle):
     observation = env_run.reset()
     for t in range(3500):
         action = env_run.action_space.sample()
@@ -63,11 +63,10 @@ env_run.close()
 # Train Env
 print("Train Environment")
 numSteps = 3500 # Number of steps 
-repeat = 5 # Repeats per condition
 conditions = 8 # Number of conditions
-cycle = 1 # Number of cycles
+cycle = 5 # Number of cycles
 
-kwargs = {'training': True, 'batchSize': repeat}
+kwargs = {'training': True}
 env_train = gym.make(task, **kwargs)
 env_train.reset()
 
@@ -78,11 +77,9 @@ model = A2C(LstmPolicy, env_train, gamma=1, alpha=1, verbose=1,
         policy_kwargs={'feature_extraction':"mlp", 'act_fun':tf.nn.tanh ,'n_lstm':200, 'net_arch':[2, 'lstm', 200, 1]})
 
 print("Start Learning")
-# Under repeats
-# model.learn(total_timesteps=numSteps*conditions*repeat*cycle, log_interval=numSteps*conditions)
 # Under cycles
-# model.learn(total_timesteps=numSteps*conditions*repeat, log_interval=3500*8)
-#model.save('CSGTask/Models/CSGModel')
+model.learn(total_timesteps=numSteps*conditions*cycle, log_interval=3500*8)
+model.save('CSGTask/Models/CSGModel')
 print("Done")
 
 env_train.close()

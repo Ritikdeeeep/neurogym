@@ -132,23 +132,24 @@ class MotorTiming(ngym.TrialEnv):
         'tags': ['timing', 'go-no-go', 'supervised']
     }
 
-    def __init__(self, dt=1, rewards=None, timing=None, training=True, batchSize=1):
+    def __init__(self, dt=1, rewards=None, timing=None, training=True):
         super().__init__(dt=dt)
         self.production_ind = [0, 1, 2, 3, 4, 5, 6, 7] 
+# Correct interval and context range
         self.intervals = [800, 850, 900, 950, 1500, 1550, 1600, 1650] 
-        self.context_ind=[0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55]
+        self.context_mag=[0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55]
 
-# If we consider the weberFraction as the production margin (acceptable deviation)
-        self.weberFraction = float((100-50)/(1500-800))
-        self.prod_margin = self.weberFraction
+        # WeberFraction as the production margin (acceptable deviation)
+# Leave out for now, reimplement later
+        # self.weberFraction = float((100-50)/(1500-800))
+        # self.prod_margin = self.weberFraction
 
         self.training = training
         self.trial_nr = 1
-        self.ind = 0
-        self.batchSize = batchSize
 
-        # Rewards
-        self.rewards = {'abort': -0.1, 'correct': +1., 'fail': -0.2}
+        # Binary Rewards
+# Redefine rewards as 0 & 1 for incorrect and correct
+        self.rewards = {'incorrect': 0., 'correct': +1.}
         if rewards:
             self.rewards.update(rewards)
 
@@ -162,6 +163,7 @@ class MotorTiming(ngym.TrialEnv):
         self.abort = False
         # Set Action and Observation Space
         # Fixate & Go
+# Correct action space to allow for ramping
         self.action_space = spaces.Discrete(2)  
 
         # Context Cue: Burn Time followed by Cue
@@ -173,35 +175,19 @@ class MotorTiming(ngym.TrialEnv):
         trial = {
             'production_ind': self.rng.choice(self.production_ind)
         }
-# Batch Implementation
-        # Choose index by Cycling through all conditions
-        # if self.training == True: 
-        #     trial['production_ind'] = self.production_ind[(self.trial_nr % 8)-1]
 
-        # Choose index by Repeating each condition 'batchSize' times
-        # if self.training == True: 
-        #     if self.trial_nr % self.batchSize == 0: # Reach end of batch
-        #         self.ind += 1   # Move to next ind
-        #         if self.ind>=len(self.production_ind): # Reset ind
-        #             self.ind=0
-        #     else:
-        #         self.ind += 0
-        #     trial['production_ind'] = self.production_ind[(self.ind)] # Choose production ind
+        # Choose index by Cycling through all conditions for Training
+        if self.training == True: 
+            trial['production_ind'] = self.production_ind[(self.trial_nr % 8)-1]
 
         trial.update(kwargs)
 
-        # Select corresponding interval (Signal + WeberFraction Noise)
-        #productionInterval = self.intervals[trial['production_ind']]
-# If we consider the weberFraction as Trial Definition
-        #noiseSigmaProduction = productionInterval * self.weberFraction
-        #productionNoise = float(np.random.normal(0, noiseSigmaProduction, 1))
-        #trial['production'] = int(productionInterval + productionNoise)
-# Else
+        # Select corresponding interval
         trial['production'] = self.intervals[trial['production_ind']]
 
-        # Select corresponding context cue (Signal + 1% Noise)
-        contextSignal = self.context_ind[trial['production_ind']]
-        noiseSigmaContext = contextSignal * 0.01
+        # Select corresponding context cue (Signal + 0.5% Noise)
+        contextSignal = self.context_mag[trial['production_ind']]
+        noiseSigmaContext = contextSignal * 0.005
         contextNoise = np.random.normal(0, noiseSigmaContext, 3450)
         contextCue = contextSignal + contextNoise
 
@@ -228,9 +214,10 @@ class MotorTiming(ngym.TrialEnv):
 
         # Set Set value to 1
         ob = self.view_ob('set')
-        ob[:, 3] = 1
+        ob[:, 3] = 0.4
         
         # Set Ground Truth
+# Correct Ground Truth to resemble ramp
         gt = np.zeros((int(2*trial['production']/self.dt),))
         gt[int(trial['production']/self.dt)] = 1
         self.set_groundtruth(gt, 'production')
@@ -248,25 +235,28 @@ class MotorTiming(ngym.TrialEnv):
         new_trial = False
         wait_Time = self.waitTime
 
-        if self.in_period('burn') or self.in_period('wait'): # It shouldnt act during Burn or Wait
+        if self.in_period('burn') or self.in_period('wait'):
             if action != 0:
                 new_trial = self.abort
-                reward = self.rewards['abort']
+                reward = self.rewards['incorrect']
 
-        if self.in_period('production'): # It should act during Production
+        if self.in_period('production'): 
             if action == 1:
                 t_prod = self.t - self.end_t['set']  # Time from set till end of measure
                 eps = abs(t_prod - trial['production']) # Difference between Produced and Interval
-                eps_threshold = int(self.prod_margin*trial['production']) # Threshold on Production Time
+# Redefine threshold to only consider the mean value
+                # eps_threshold = int(self.prod_margin*trial['production']) # Threshold on Production Time
+                eps_threshold = 3
 
                 if eps > eps_threshold:
-                    reward = self.rewards['fail']
+                    reward = self.rewards['incorrect']
                 else:
                     new_trial = True  # New trail, because now its in the correct period and over threshold
-# Allowed to put new_trial condition here of keep when in production?
-                    reward = (1. - eps/eps_threshold)**1.5
-                    reward = max(reward, 0.25)
-                    reward *= self.rewards['correct']
+# Redefine reward for correct as 1
+                    #reward = (1. - eps/eps_threshold)**1.5
+                    #reward = max(reward, 0.25)
+                    #reward *= self.rewards['correct']
+                    reward = self.rewards['correct']
                     self.performance = 1
 
         if new_trial==True:
