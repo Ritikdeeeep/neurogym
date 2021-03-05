@@ -116,6 +116,7 @@ class ReadySetGo(ngym.TrialEnv):
 
         return ob, reward, False, {'new_trial': new_trial, 'gt': gt}
 
+
 class MotorTiming(ngym.TrialEnv):
     """Agents have to produce different time intervals
     using different effectors (actions).
@@ -124,7 +125,7 @@ class MotorTiming(ngym.TrialEnv):
         prod_margin: controls the interval around the ground truth production
                     time within which the agent receives proportional reward
     """
-
+    #  TODO: different actions not implemented
     metadata = {
         'paper_link': 'https://www.nature.com/articles/s41593-017-0028-6',
         'paper_name': '''Flexible timing by temporal scaling of
@@ -132,106 +133,54 @@ class MotorTiming(ngym.TrialEnv):
         'tags': ['timing', 'go-no-go', 'supervised']
     }
 
-    def __init__(self, dt=1, rewards=None, timing=None, training=True, batchSize=1):
+    def __init__(self, dt=80, rewards=None, timing=None, prod_margin=0.2):
         super().__init__(dt=dt)
-        self.production_ind = [0, 1, 2, 3, 4, 5, 6, 7] 
-        self.intervals = [800, 850, 900, 950, 1500, 1550, 1600, 1650] 
-        self.context_ind=[0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55]
-
-# If we consider the weberFraction as the production margin (acceptable deviation)
-        self.weberFraction = float((100-50)/(1500-800))
-        self.prod_margin = self.weberFraction
-
-        self.training = training
-        self.trial_nr = 1
-        self.ind = 0
-        self.batchSize = batchSize
+        self.prod_margin = prod_margin
+        self.production_ind = [0, 1]
+        self.intervals = [800, 1500]
 
         # Rewards
-        self.rewards = {'abort': -0.1, 'correct': +1., 'fail': -0.2}
+        self.rewards = {'abort': -0.1, 'correct': +1., 'fail': 0.}
         if rewards:
             self.rewards.update(rewards)
 
-        self.timing = { 
-            'cue': 50,
-            'set': 100}
-            
+        self.timing = {
+            'fixation': 500,  # XXX: not specified
+            'cue': lambda: self.rng.uniform(1000, 3000),
+            'set': 50}
         if timing:
             self.timing.update(timing)
 
         self.abort = False
-        # Set Action and Observation Space
-        # Fixate & Go
-        self.action_space = spaces.Discrete(2)  
-
-        # Context Cue: Burn Time followed by Cue
-        # Set Cue: Wait followed by Set Spike
-        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(4,), dtype=np.float32)
+        # set action and observation space
+        self.action_space = spaces.Discrete(2)  # (fixate, go)
+        # Fixation, Interval indicator x2, Set
+        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(4,),
+                                            dtype=np.float32)
 
     def _new_trial(self, **kwargs):
-        # Choose index (0-7) at Random
         trial = {
             'production_ind': self.rng.choice(self.production_ind)
         }
-# Batch Implementation
-        # Choose index by Cycling through all conditions
-        # if self.training == True: 
-        #     trial['production_ind'] = self.production_ind[(self.trial_nr % 8)-1]
-
-        # Choose index by Repeating each condition 'batchSize' times
-        # if self.training == True: 
-        #     if self.trial_nr % self.batchSize == 0: # Reach end of batch
-        #         self.ind += 1   # Move to next ind
-        #         if self.ind>=len(self.production_ind): # Reset ind
-        #             self.ind=0
-        #     else:
-        #         self.ind += 0
-        #     trial['production_ind'] = self.production_ind[(self.ind)] # Choose production ind
-
         trial.update(kwargs)
 
-        # Select corresponding interval (Signal + WeberFraction Noise)
-        #productionInterval = self.intervals[trial['production_ind']]
-# If we consider the weberFraction as Trial Definition
-        #noiseSigmaProduction = productionInterval * self.weberFraction
-        #productionNoise = float(np.random.normal(0, noiseSigmaProduction, 1))
-        #trial['production'] = int(productionInterval + productionNoise)
-# Else
         trial['production'] = self.intervals[trial['production_ind']]
 
-        # Select corresponding context cue (Signal + 1% Noise)
-        contextSignal = self.context_ind[trial['production_ind']]
-        noiseSigmaContext = contextSignal * 0.01
-        contextNoise = np.random.normal(0, noiseSigmaContext, 3450)
-        contextCue = contextSignal + contextNoise
+        self.add_period(['fixation', 'cue', 'set'])
+        self.add_period('production', duration=2*trial['production'],
+                        after='set')
 
-        # Define Wait Time
-        self.waitTime = int(self.rng.uniform(100, 200))
-        
-        # Add periods
-        self.add_period('burn', duration= 50)
-        self.add_period('cue', duration= 3450, after='burn')
-        self.add_period('wait', duration= self.waitTime, after='burn')
-        self.add_period('set', duration= 20, after='wait')
-        self.add_period('production', duration=2*trial['production'], after='set')
-
-        # Set Burn to [0,0,0,0]
-        ob = self.view_ob('burn')
-        ob[:, 0] = 0
-        ob[:, 1] = 0
-        ob[:, 2] = 0
-        ob[:, 3] = 0
-
-        # Set Cue to contextCue
+        self.set_ob([1, 0, 0, 0], 'fixation')
         ob = self.view_ob('cue')
-        ob[:, 1] = contextCue
-
-        # Set Set value to 1
+        ob[:, 0] = 1
+        ob[:, trial['production_ind']+1] = 1
         ob = self.view_ob('set')
+        ob[:, 0] = 1
+        ob[:, trial['production_ind'] + 1] = 1
         ob[:, 3] = 1
         
-        # Set Ground Truth
-        gt = np.zeros((int(2*trial['production']/self.dt),))
+        # set ground truth
+        gt = np.zeros((int(2*trial['production']/self.dt)))
         gt[int(trial['production']/self.dt)] = 1
         self.set_groundtruth(gt, 'production')
 
@@ -246,33 +195,27 @@ class MotorTiming(ngym.TrialEnv):
         ob = self.ob_now
         gt = self.gt_now
         new_trial = False
-        wait_Time = self.waitTime
-
-        if self.in_period('burn') or self.in_period('wait'): # It shouldnt act during Burn or Wait
+        if self.in_period('fixation'):
             if action != 0:
                 new_trial = self.abort
                 reward = self.rewards['abort']
-
-        if self.in_period('production'): # It should act during Production
+        if self.in_period('production'):
             if action == 1:
-                t_prod = self.t - self.end_t['set']  # Time from set till end of measure
-                eps = abs(t_prod - trial['production']) # Difference between Produced and Interval
-                eps_threshold = int(self.prod_margin*trial['production']) # Threshold on Production Time
-
+                new_trial = True  # Terminate, because this trial is done (correct time)
+                t_prod = self.t - self.end_t['set']  # time from end of measure
+                eps = abs(t_prod - trial['production'])
+                # actual production time
+                eps_threshold = self.prod_margin*trial['production']+25
                 if eps > eps_threshold:
                     reward = self.rewards['fail']
                 else:
-                    new_trial = True  # New trail, because now its in the correct period and over threshold
-# Allowed to put new_trial condition here of keep when in production?
                     reward = (1. - eps/eps_threshold)**1.5
-                    reward = max(reward, 0.25)
+                    reward = max(reward, 0.1)
                     reward *= self.rewards['correct']
                     self.performance = 1
 
-        if new_trial==True:
-            self.trial_nr += 1
+        return ob, reward, False, {'new_trial': new_trial, 'gt': gt}
 
-        return ob, reward, new_trial, {'new_trial': new_trial, 'gt': gt, 'wait_time': wait_Time}
 
 class OneTwoThreeGo(ngym.TrialEnv):
     r"""Agents reproduce time intervals based on two samples.
