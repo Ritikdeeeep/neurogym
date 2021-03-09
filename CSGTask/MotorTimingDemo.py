@@ -17,7 +17,7 @@ warnings.filterwarnings('ignore')
 # Define Env
 print("Define Environment")
 task = 'MotorTiming-v0'
-kwargs = {'training': True, 'batchSize': 5}
+kwargs = {'training': True}
 env = gym.make(task, **kwargs)
 env.close()
 
@@ -25,10 +25,9 @@ env.close()
 print("Plot Environment")
 kwargs = {'training': False}
 env_plot = gym.make(task, **kwargs)
-env_data = plotting.run_env(env_plot, num_steps=3500, num_trials=8, def_act=0)
+env_data = plotting.run_env(env_plot, num_steps=3500, num_trials=1, def_act=0)
 
-# Add additional plot for objective
-fig, axs = plt.subplots(2, sharex=True, sharey=True)
+fig, axs = plt.subplots(3, sharex=True, sharey=True)
 fig.suptitle('CSG Input')
 plt.xlabel("Time")
 
@@ -40,12 +39,16 @@ axs[1].plot(env_data['ob'][:,3])
 axs[1].set_title('Set Cue')
 axs[1].set_ylabel('Set Magnitude')
 
+axs[2].plot(env_data['gt'])
+axs[2].set_title('Target')
+axs[2].set_ylabel('Target Magnitude')
+
 plt.show()
 env_plot.close()
 
 # Run Env
 print("Run Environment")
-conditions = 8
+conditions = 10
 cycle = 1
 
 kwargs = {'training': True}
@@ -63,8 +66,8 @@ env_run.close()
 # Train Env
 print("Train Environment")
 numSteps = 3500 # Number of steps 
-conditions = 8 # Number of conditions
-cycle = 5 # Number of cycles
+conditions = 10 # Number of conditions
+cycle = 1 # Number of cycles
 
 kwargs = {'training': True}
 env_train = gym.make(task, **kwargs)
@@ -77,7 +80,6 @@ model = A2C(LstmPolicy, env_train, gamma=1, alpha=1, verbose=1,
         policy_kwargs={'feature_extraction':"mlp", 'act_fun':tf.nn.tanh ,'n_lstm':200, 'net_arch':[2, 'lstm', 200, 1]})
 
 print("Start Learning")
-# Under cycles
 model.learn(total_timesteps=numSteps*conditions*cycle, log_interval=3500*8)
 model.save('CSGTask/Models/CSGModel')
 print("Done")
