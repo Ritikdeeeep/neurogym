@@ -147,9 +147,9 @@ class MotorTiming(ngym.TrialEnv):
         self.trial_nr = 1
 
         # Binary Rewards for incorrect and correct
-        self.rewards = {'incorrect': 0., 'correct': +1.}
+        self.rewards = {'incorrect': 0., 'correct': +1., 'completed': +2.}
         if rewards:
-            self.rewards.update(rewards)
+            self.rewards.update(rewards)     
 
         self.timing = { 
             'cue': 50,
@@ -161,14 +161,13 @@ class MotorTiming(ngym.TrialEnv):
         self.abort = False
         # Set Action and Observation Space
         # Allow Ramping between 0-1
-# Correct action space to allow for ramping
-        self.action_space = spaces.Box(0, 1, shape=(1,), dtype=np.float32)  
+        self.action_space = spaces.Box(0, 1.1, shape=(1,), dtype=np.float32)  
 
         # Context Cue: Burn Time followed by Cue & Set Cue: Wait followed by Set Spike
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(4,), dtype=np.float32)
 
     def _new_trial(self, **kwargs):
-        # Choose index (0-7) at Random
+        # Choose index (0-9) at Random
         trial = {
             'production_ind': self.rng.choice(self.production_ind)
         }
@@ -221,50 +220,48 @@ class MotorTiming(ngym.TrialEnv):
         gt_ramp = np.multiply(1/trial['production'], t_ramp)
         gt_step = np.ones((int((self.trialDuration-(trial['production']+self.set+self.waitTime+self.burn))/self.dt),), dtype=np.float)
         gt = np.concatenate((gt_ramp, gt_step)).astype(np.float)
-        gt = np.reshape(gt, [self.trialDuration-(self.set+self.waitTime+self.burn)/self.dt] + list(self.action_space.shape))
+        gt = np.reshape(gt, [int(self.trialDuration-(self.set+self.waitTime+self.burn)/self.dt)] + list(self.action_space.shape))
         self.set_groundtruth(gt, period='production')
 
         return trial
 
     def _step(self, action):
-        # ---------------------------------------------------------------------
-        # Reward and inputs
-        # ---------------------------------------------------------------------
         trial = self.trial
         reward = 0
         ob = self.ob_now
-        gt = float(self.gt_now)
+        gt = self.gt_now
         new_trial = False
-        wait_Time = self.waitTime
+        waitTime = self.waitTime
 
-        if self.in_period('burn') or self.in_period('wait'):
-            if action != 0:
-                new_trial = self.abort
+        if self.in_period('burn') or self.in_period('wait') or self.in_period('set'):
+            if action != 0: # Shouldn't act during Burn, Wait or Set
                 reward = self.rewards['incorrect']
 
         if self.in_period('production'): 
-            if action == 1:
-                t_prod = self.t - self.end_t['set']  # Time from set till end of measure
-                eps = abs(t_prod - trial['production']) # Difference between Produced and Interval
-# Redefine threshold to only consider the mean value
-                # eps_threshold = int(self.prod_margin*trial['production']) # Threshold on Production Time
-                eps_threshold = 3
+            if action == gt: # Act during Production should be Ground Truth
+                reward = self.rewards['correct']
+            else: 
+                reward = self.rewards['incorrect']
 
-                if eps > eps_threshold:
-                    reward = self.rewards['incorrect']
-                else:
-                    new_trial = True  # New trail, because now its in the correct period and over threshold
-# Redefine reward for correct as 1
-                    #reward = (1. - eps/eps_threshold)**1.5
-                    #reward = max(reward, 0.25)
-                    #reward *= self.rewards['correct']
-                    reward = self.rewards['correct']
+            if  0.95 < action <= 1: # Measure Produced Interval when Action reaches 1
+# Given interval, since it does not seem to reach 1 without training 
+                t_prod = self.t - self.end_t['set']  # Time from Set till Action == 1
+                eps = abs(t_prod - trial['production']) # Difference between Produced Interval and Interval
+                eps_threshold = 5
+# Redefine Threshold here as well
+                # int(self.prod_margin*trial['production'])
+
+                if eps < eps_threshold: # If Difference is below Threshold, Finish Trial
+                    new_trial = True
+                    reward = self.rewards['completed']
                     self.performance = 1
+                else:
+                    reward = self.rewards['incorrect']
 
         if new_trial==True:
             self.trial_nr += 1
 
-        return ob, reward, new_trial, {'new_trial': new_trial, 'gt': gt, 'wait_time': wait_Time}
+        return ob, reward, new_trial, {'new_trial': new_trial, 'gt': gt, 'waitTime': waitTime}
 
 class OneTwoThreeGo(ngym.TrialEnv):
     r"""Agents reproduce time intervals based on two samples.

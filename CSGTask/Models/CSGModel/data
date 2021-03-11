@@ -1,0 +1,68 @@
+{
+    "gamma": 1,
+    "n_steps": 5,
+    "vf_coef": 0.25,
+    "ent_coef": 0.01,
+    "max_grad_norm": 0.5,
+    "learning_rate": 0.0007,
+    "alpha": 1,
+    "epsilon": 1e-05,
+    "lr_schedule": "constant",
+    "verbose": 1,
+    "policy": {
+        ":type:": "<class 'abc.ABCMeta'>",
+        ":serialized:": "gASVMwAAAAAAAACMIHN0YWJsZV9iYXNlbGluZXMuY29tbW9uLnBvbGljaWVzlIwKTHN0bVBvbGljeZSTlC4=",
+        "__module__": "stable_baselines.common.policies",
+        "__doc__": "\n    Policy object that implements actor critic, using LSTMs.\n\n    :param sess: (TensorFlow session) The current TensorFlow session\n    :param ob_space: (Gym Space) The observation space of the environment\n    :param ac_space: (Gym Space) The action space of the environment\n    :param n_env: (int) The number of environments to run\n    :param n_steps: (int) The number of steps to run for each environment\n    :param n_batch: (int) The number of batch to run (n_envs * n_steps)\n    :param n_lstm: (int) The number of LSTM cells (for recurrent policies)\n    :param reuse: (bool) If the policy is reusable or not\n    :param layers: ([int]) The size of the Neural network before the LSTM layer  (if None, default to [64, 64])\n    :param net_arch: (list) Specification of the actor-critic policy network architecture. Notation similar to the\n        format described in mlp_extractor but with additional support for a 'lstm' entry in the shared network part.\n    :param act_fun: (tf.func) the activation function to use in the neural network.\n    :param cnn_extractor: (function (TensorFlow Tensor, ``**kwargs``): (TensorFlow Tensor)) the CNN feature extraction\n    :param layer_norm: (bool) Whether or not to use layer normalizing LSTMs\n    :param feature_extraction: (str) The feature extraction type (\"cnn\" or \"mlp\")\n    :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction\n    ",
+        "recurrent": true,
+        "__init__": "<function LstmPolicy.__init__ at 0x7fe761536680>",
+        "step": "<function LstmPolicy.step at 0x7fe761536710>",
+        "proba_step": "<function LstmPolicy.proba_step at 0x7fe7615367a0>",
+        "value": "<function LstmPolicy.value at 0x7fe761536830>",
+        "__abstractmethods__": "frozenset()",
+        "_abc_impl": "<_abc_data object at 0x7fe761520780>"
+    },
+    "observation_space": {
+        ":type:": "<class 'neurogym.utils.spaces.Box'>",
+        ":serialized:": "gASVpwEAAAAAAACMFW5ldXJvZ3ltLnV0aWxzLnNwYWNlc5SMA0JveJSTlCmBlH2UKIwFZHR5cGWUjAVudW1weZSMBWR0eXBllJOUjAJmNJSJiIeUUpQoSwOMATyUTk5OSv////9K/////0sAdJRijAVzaGFwZZRLBIWUjANsb3eUjBVudW1weS5jb3JlLm11bHRpYXJyYXmUjAxfcmVjb25zdHJ1Y3SUk5RoBowHbmRhcnJheZSTlEsAhZRDAWKUh5RSlChLAUsEhZRoC4lDEAAAgP8AAID/AACA/wAAgP+UdJRijARoaWdolGgTaBVLAIWUaBeHlFKUKEsBSwSFlGgLiUMQAACAfwAAgH8AAIB/AACAf5R0lGKMDWJvdW5kZWRfYmVsb3eUaBNoFUsAhZRoF4eUUpQoSwFLBIWUaAiMAmIxlImIh5RSlChLA4wBfJROTk5K/////0r/////SwB0lGKJQwQAAAAAlHSUYowNYm91bmRlZF9hYm92ZZRoE2gVSwCFlGgXh5RSlChLAUsEhZRoK4lDBAAAAACUdJRijApfbnBfcmFuZG9tlE51Yi4=",
+        "dtype": "float32",
+        "shape": [
+            4
+        ],
+        "low": "[-inf -inf -inf -inf]",
+        "high": "[inf inf inf inf]",
+        "bounded_below": "[False False False False]",
+        "bounded_above": "[False False False False]",
+        "_np_random": null
+    },
+    "action_space": {
+        ":type:": "<class 'neurogym.utils.spaces.Box'>",
+        ":serialized:": "gASVFgwAAAAAAACMFW5ldXJvZ3ltLnV0aWxzLnNwYWNlc5SMA0JveJSTlCmBlH2UKIwFZHR5cGWUjAVudW1weZSMBWR0eXBllJOUjAJmNJSJiIeUUpQoSwOMATyUTk5OSv////9K/////0sAdJRijAVzaGFwZZRLAYWUjANsb3eUjBVudW1weS5jb3JlLm11bHRpYXJyYXmUjAxfcmVjb25zdHJ1Y3SUk5RoBowHbmRhcnJheZSTlEsAhZRDAWKUh5RSlChLAUsBhZRoC4lDBAAAAACUdJRijARoaWdolGgTaBVLAIWUaBeHlFKUKEsBSwGFlGgLiUMEzcyMP5R0lGKMDWJvdW5kZWRfYmVsb3eUaBNoFUsAhZRoF4eUUpQoSwFLAYWUaAiMAmIxlImIh5RSlChLA4wBfJROTk5K/////0r/////SwB0lGKJQwEBlHSUYowNYm91bmRlZF9hYm92ZZRoE2gVSwCFlGgXh5RSlChLAUsBhZRoK4loLnSUYowKX25wX3JhbmRvbZSMFG51bXB5LnJhbmRvbS5fcGlja2xllIwSX19yYW5kb21zdGF0ZV9jdG9ylJOUjAdNVDE5OTM3lIWUUpR9lCiMDWJpdF9nZW5lcmF0b3KUaDqMBXN0YXRllH2UKIwDa2V5lGgTaBVLAIWUaBeHlFKUKEsBTXAChZRoCIwCdTSUiYiHlFKUKEsDaAxOTk5K/////0r/////SwB0lGKJQsAJAAAqAWFcsBE7CCVZ9Yc3mhQ2sZe/PUelSPFFMI6H0YH65ogPKKFc9NhrzR1c5ONekjBiB7UV34JP+4t2NzLauZ4JVl4Czgz2GsX0OkhHagelXQrz8Txs8lSjSmttrPAAYj7ErKJv6uuhyGyyqvDkAOk3fL8bEnjwU9GKCfbPZvJii0FZCLehgLq80ufxOVpxYQ8rby/2w7t1YqLoEApx69IBPBXmn4xTTE+CEc6qPUpf60/F9rH6xbQCES3mbu7lfIp/lpvcRMpyQho9prR4O1B7Sn182Yc4vEw3jAj6vyL3TBa2DQZgULKKuAs2+usnfv7mQg3baNGV58uVmH0WgMVyaeDu+4UKhT3ie9Olum5u3hXfqbskXnngDyJ8e86wfm+P52l0EvjqivGsCFYhcfVmFzoqJOw8je1SBitYpVs7rEv9g981GBhYI34q6/2cOodvCq64onvReNIJ51FKPte18HNT02a+vIbVu/ExzDnMr/gbWMl6oB2sUcD0CNZUqEIe5eMfXM60xxKgB+7hPj1zR7RzLqS412wq/nHCit8SojqcWuSnNQhzU/Gw5dToDWOb6yoiBMjx0gKvRppuatNJr8TcjW2WX8LXOj00NmlD8zu1Chp5ZTZCbWuwiPYcsiQ6FJB6f0PoDtX66HBO54mdHelUnGiJxA2uEGTEqOhMc1KDifohyXWsqzO6qPlwK8c9MUPIgznEfO29DLOjyWjB9Lr1dL+gpvOsQfRFNY8rchXpxh3xByDJ86bbzhNMTm8LItKITqmShtLAiHYVqNFY1dWskWtKIIWF2WWi62MVvzVVkQevpNkNd03TPybMMHMgxkTmsLyCueA5nk4hwnTs8qRah32qj51N+pIotRV5t91YdThp7H/eiqYjXOs6oy1P/MlrvbUrI7rX4S8+LmXpLtIs7PBcF7QdeqMi7X3fiebVMlaae+9gvZM6ZuEtEuetd4odSBSbDsEnlF1DGWj67Qq8oZjd1fMn05So3jCBOCTIP7wEXtzzC5KVzCzZywR/3yZ92qCklzHFeU97vBnF7M6IfW0fzowXjq6uG8gcJgd+1+a09t5FHY6KZukxjyuV6VzA3hs9hoNaN+jrJ/nDxObdHLom/nLPvXtH4dToo2f0BZ5S/4QuE0ncG+VGFARdlMnbYVslj7Cf0XaMZi2rnKBPPjem79ka7xxq3Tj2HqO56ULlnAp+cf5ZUA3mMNTo/I5i8+4f1LSuBsYSnc74aErCJPlf6VOGOmDI50GEFN3orTm5fELoa4jUKGWkdKGNRWvSQkbK/8G9HM7AvWW6mCT1vqEoR6muBmTe+zeO/NRDFsIF9Az/RdVLOxSaNstjTabYA8rCjNqw0C4Fa7xz/X7bE2SKwTlXngPrWsehFpMpG3jjWli2gKnlv//3NlVxPl7YcB8iNQV3ToG3eWVyleBdHryqqH0wuRp4QCtx8nfKb693F9VLdEjs9Q1blFJcBZfdlrrKoGkn1WQSMssolMgpNK2GDrR0q90NNVNtOkCy4oRfxtKrMoT8DWYZ8vSQKN1neZwZEt3YYL5lAIfEIoLjMXfJx/p/5Ma7qiUOtY0POXlkJ2gFT7/tIJmtoW9RWtDWQep+TvnNa7LRZ0G3vnZ8mN0lsK4RBGNOwn8VIkRd/5/kN2dZB815Az8+K3Tj6QWV7v17r6nlPS0bDN3GmWteEwK5aXqT/eVeaRnC0ShP9OcUXKuNoV/xpWwlRI82jjjX6o7jzB3M9ObbE5cmY0btfjKHTa6DtY/TOaESzLi1/ZtZcOg2lgYvDUWX496qTY1/YXJjQl37u9/RYJvnv41YX78GFYjcQOSooYwlGNwzbsvO6ykRXGlK/552eXO5MHe+Rm26cfl1ZoWRd+fNMKVUX5+LrxzjCv8fnKCkVRedYFQd8cJzGTb54oyERzzfc6WzULvJT9PWWM3yDgeYuZkeGd8ytFDgvgU3wOH4dAqalNGmiHkP8o2ZZ7QoUAFqnriKjqXjiFCodw7iNWHe5T1vfx+1y+iO3f6ESKGngvsYaEE4bMGbwreG8WU6S3495PJzbRq/8KFnnBCcr6CikzrTKhvw2Q3Xi3yKnXAal5UkMSXaChnApSnWxcup7nbTnbNm7EeVQ7B5dZxQloIyKxLkCWSx+G7IcY+O5FCwxrUdOVuOjgh4qnoyTHK2i+7B5FmE1oZxSOLmZtC1BHmcWAB5QiwcPvvnQy3eygyjOwhhb7tlR76r5MSg5YPwqv69fHw0wmDM7oDkixJKxiB6Tv/yQNk6MPsPgewDJvReNf8HZHhgLgQmuIzs4oNVmsno+0uXi23iujgoIBVsM1MNAG1C2Z5kAot8TQipkB03llBTr6RzJkqmb7J1KMtPDKJdNggjoCsXwjcu3LuX/jDksvIw9F2AmvLlQKkpO3xw8MBYjkKplLaPIBPeA9gxQjhgd9Bp2slwET+P3Q5O6tzkm/EpeiE8nQlwXaN1RG8u70CKd3bTxvG/In/l5v6T/DWRVoR8QEBsq85HYDpp298xBVjglrPEl0jyFJXb7hXW09nZj4AnStFeD+opS43kNqWp6SAjnApHfD5LiTodWvCB6jJah/ia0hUoWLrjWFazZIICmRGmjwuFnStn/L5rRtUwCG5zuExxhIgKXTqwWqIddqHn+s9N/grhSEkeNhwc4hWOYFKmkMGbuF+j5yX5oCb+oFG5U9cI7tlJhlUsHmij26ys9S/SngYyudyfg3Soteygrxb1/JyTffbKpsiwAVJ6koUeyNgzZ5UcgaAWw5awUBVZAIEeYecTznTjzKrbopRD1DyNhjL8TFvq6CzbXqjjwaTpoUm49QvMGIKYDxxhqq8MvYKd4k8+q/PnvVgjuzDA7Sk6fmZQtSntya7RXUE8njjkjaoCV4lvNLrObrPFCJ9wpaRSKKsZpntVacLsbyfIWe7hTvG4eIpzrE5HIeV7Ysz8NJmaTmG8b975Ht1JWJC/x2hQuJ5ImaTFxKMZvnbTkA2elS0dNCcKzczE2oKTxZ+mnGNBB3ZHlEm/rePCovBBX463P9o3mGlhBTN9Razfkud7GqUxZJRlmeqJMMI2cVDT7AEEuVm97eBw+32bESwbg4g+ot/hFZbLfHaBH7/aVFR3ABOQtC+TKhjtu1IyPO+1CqsVFaVSh5JYeVS+/bgEgxVHgEUETuIs6n2MjD4zFljJCNOdPHel6m7OAxlhr9f3FGoTGl1TIGxP97ECshH7Ou+0M+J23fkUAZrTyiqZY+1rta7BccYXEp3jV6bUz/wvO7AQwB/zT2N0iUXapNEpy/pa9g06dc3xTPtR7jh5XCngeyRi94gwM0Ydg0iUdJRijANwb3OUSwJ1jAloYXNfZ2F1c3OUSwCMBWdhdXNzlEcAAAAAAAAAAHVidWIu",
+        "dtype": "float32",
+        "shape": [
+            1
+        ],
+        "low": "[0.]",
+        "high": "[1.1]",
+        "bounded_below": "[ True]",
+        "bounded_above": "[ True]",
+        "_np_random": "RandomState(MT19937)"
+    },
+    "n_envs": 1,
+    "n_cpu_tf_sess": null,
+    "seed": null,
+    "_vectorize_action": false,
+    "policy_kwargs": {
+        ":type:": "<class 'dict'>",
+        ":serialized:": "gASVfwAAAAAAAAB9lCiMEmZlYXR1cmVfZXh0cmFjdGlvbpSMA21scJSMB2FjdF9mdW6UjCJ0ZW5zb3JmbG93LnB5dGhvbi5vcHMuZ2VuX21hdGhfb3BzlIwEdGFuaJSTlIwGbl9sc3RtlEvIjAhuZXRfYXJjaJRdlChLAowEbHN0bZRLyEsBZXUu",
+        "feature_extraction": "mlp",
+        "act_fun": "<function tanh at 0x7fe75bcef9e0>",
+        "n_lstm": 200,
+        "net_arch": [
+            2,
+            "lstm",
+            200,
+            1
+        ]
+    }
+}
