@@ -3,12 +3,13 @@ import warnings
 import gym
 import neurogym as ngym
 import tensorflow as tf
+import numpy as np
 from neurogym.utils import plotting
 import matplotlib.pyplot as plt
-import numpy as np
-from neurogym.wrappers import monitor, noise
+from neurogym.wrappers import monitor
 from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.common.evaluation import evaluate_policy
 from stable_baselines import A2C
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
@@ -17,7 +18,8 @@ warnings.filterwarnings('ignore')
 # Define Parameters
 plot = False
 run = False
-train = True
+train = False
+runTrained = True
 
 numSteps = 3500 # Number of Steps
 conditions = 10 # Number of Conditions
@@ -37,63 +39,102 @@ env.close()
 # Plot Env
 if plot:
     print("Plot Environment")
-    kwargs = {'training': False}
-    env_plot = gym.make(task, **kwargs)
-    env_data = plotting.run_env(env_plot, num_steps=numSteps, num_trials=numTrials, def_act=0)
 
+    # Define Env
+    kwargs = {'training': False}
+    envPlot = gym.make(task, **kwargs)
+    env_data = plotting.run_env(envPlot, num_steps=numSteps, num_trials=numTrials, def_act=0)
+
+    # Plot
     fig, axs = plt.subplots(3, sharex=True, sharey=True)
     fig.suptitle('CSG Input')
     plt.xlabel("Time")
 
+        # Context Cue
     axs[0].plot(env_data['ob'][:,1])
     axs[0].set_title('Context Cue')
     axs[0].set_ylabel('Context Magnitude')
 
+        # Set Cue
     axs[1].plot(env_data['ob'][:,3])
     axs[1].set_title('Set Cue')
     axs[1].set_ylabel('Set Magnitude')
 
+        # Target
     axs[2].plot(env_data['gt'])
     axs[2].set_title('Target')
     axs[2].set_ylabel('Target Magnitude')
     plt.show()
 
-    env_plot.close()
+    envPlot.close()
 
 # Run Env
 if run:
     print("Run Environment")
 
+    # Define Env
     kwargs = {'training': True}
-    env_run = gym.make(task, **kwargs)
+    envRun = gym.make(task, **kwargs)
+
+    # Run
     for i_episode in range(conditions*Run_cycle):
-        observation = env_run.reset()
+        observation = envRun.reset()
         for t in range(numSteps):
-            action = env_run.action_space.sample()
-            observation, reward, done, info = env_run.step(action)
+            action = envRun.action_space.sample()
+            observation, reward, done, info = envRun.step(action)
             if done:
                 print("Episode finished after {} timesteps".format((t+1)-info['waitTime']))
                 break
 
-    env_run.close()
+    envRun.close()
 
 # Train Env
 if train:
     print("Train Environment")
 
+    # Define Env
     kwargs = {'training': True}
-    env_train = gym.make(task, **kwargs)
-    env_train.reset()
+    envTrain = gym.make(task, **kwargs)
+    envTrain.reset()
+    envTrain = monitor.Monitor(envTrain, folder='CSGTask/Plots/', sv_per=50000, verbose=1, sv_fig=True, num_stps_sv_fig=1000)
+    envTrain = DummyVecEnv([lambda: envTrain])
 
-    env_train = monitor.Monitor(env_train, folder='CSGTask/Plots/', sv_per=50000, verbose=1, sv_fig=True, num_stps_sv_fig=1000)
-
-    env_train = DummyVecEnv([lambda: env_train])
-    model = A2C(LstmPolicy, env_train, gamma=1, alpha=1, verbose=1, 
+    # Define Model
+    model = A2C(LstmPolicy, envTrain, gamma=1, alpha=1, verbose=1, 
             policy_kwargs={'feature_extraction':"mlp", 'act_fun':tf.nn.tanh ,'n_lstm':200, 'net_arch':[2, 'lstm', 200, 1]})
 
-    print("Start Learning")
+    # Train
+    print("Start Training")
     model.learn(total_timesteps=numSteps*conditions*Train_cycle, log_interval=numSteps*conditions)
     model.save('CSGTask/Models/CSGModel')
     print("Done")
 
-    env_train.close()
+    envTrain.close()
+
+# Run Trained Env
+if runTrained:
+    print("Run Trained Environment")
+
+    # Define Env
+    kwargs = {'training': False}
+    envRunTrained = gym.make(task, **kwargs)
+    envRunTrained = DummyVecEnv([lambda: envRunTrained])
+
+    # Define Model
+    modelTrained = A2C.load(load_path = '/Users/ritikmehta/School/Bsc_NB3/BEP/neurogym/CSGTask/Models/CSGModel.zip', 
+                            env = envRunTrained)
+
+    # Evaluate Model
+    # mean_reward, std_reward = evaluate_policy(modelTrained, envRunTrained, n_eval_episodes=10)
+
+    for i_episode in range(conditions):
+        observation = envRunTrained.reset()
+        for t in range(numSteps):
+            action = modelTrained.predict(observation)
+            observation, reward, done, info = envRunTrained.step(action)
+            if done:
+                print("Episode finished after {} timesteps".format((t+1)))
+                break
+        print("Reach End")
+
+    envRunTrained.close()

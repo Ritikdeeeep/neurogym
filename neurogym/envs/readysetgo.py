@@ -234,8 +234,8 @@ class MotorTiming(ngym.TrialEnv):
         waitTime = self.waitTime
 
         if self.in_period('burn') or self.in_period('wait') or self.in_period('set'):
-            if action != 0: # Shouldn't act during Burn, Wait or Set
-                reward = self.rewards['incorrect']
+            if action == 0: # Shouldn't act during Burn, Wait or Set
+                reward = self.rewards['correct']
 
         if self.in_period('production'): 
             if action == gt: # Act during Production should be Ground Truth
@@ -243,11 +243,11 @@ class MotorTiming(ngym.TrialEnv):
             else: 
                 reward = self.rewards['incorrect']
 
-            if  0.95 < action <= 1: # Measure Produced Interval when Action reaches 1
-# Given interval, since it does not seem to reach 1 without training 
+            if  0.95 < action <= 1: # Measure Produced_Interval when Action reaches 1
+# Interval, since it does not seem to reach 1 without training 
                 t_prod = self.t - self.end_t['set']  # Time from Set till Action == 1
-                eps = abs(t_prod - trial['production']) # Difference between Produced Interval and Interval
-                eps_threshold = 5
+                eps = abs(t_prod - trial['production']) # Difference between Produced_Interval and Interval
+                eps_threshold = 10
 # Redefine Threshold here as well
                 # int(self.prod_margin*trial['production'])
 
