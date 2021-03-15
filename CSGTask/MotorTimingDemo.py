@@ -18,23 +18,17 @@ warnings.filterwarnings('ignore')
 # Define Parameters
 plot = False
 run = False
-train = False
-runTrained = True
+train = True
+runTrained = False
 
+task = 'MotorTiming-v0'
 numSteps = 3500 # Number of Steps
 conditions = 10 # Number of Conditions
 
 numTrials = 10 # Number of Trials for Plot
 Run_cycle = 5 # Number of Cycles for Run
-Train_cycle = 1 # Number of Cycles for Training
+Train_cycle = 3 # Number of Cycles for Training
     # TotalSteps= 3500 * 10 * Train_cycle
-
-# Define Env
-print("Define Environment")
-task = 'MotorTiming-v0'
-kwargs = {'training': True}
-env = gym.make(task, **kwargs)
-env.close()
 
 # Plot Env
 if plot:
@@ -96,16 +90,20 @@ if train:
     kwargs = {'training': True}
     envTrain = gym.make(task, **kwargs)
     envTrain.reset()
-    envTrain = monitor.Monitor(envTrain, folder='CSGTask/Plots/', sv_per=50000, verbose=1, sv_fig=True, num_stps_sv_fig=1000)
+    envTrain = monitor.Monitor(envTrain, folder='CSGTask/Plots/', sv_per=numSteps, verbose=False, sv_fig=True, num_stps_sv_fig=3500)
     envTrain = DummyVecEnv([lambda: envTrain])
 
     # Define Model
-    model = A2C(LstmPolicy, envTrain, gamma=1, alpha=1, verbose=1, 
-            policy_kwargs={'feature_extraction':"mlp", 'act_fun':tf.nn.tanh ,'n_lstm':200, 'net_arch':[2, 'lstm', 200, 1]})
+    model = A2C(LstmPolicy, envTrain, verbose=1, gamma=1, alpha=1,  
+                lr_schedule='constant', learning_rate=(1*(10**-4)),
+                ent_coef=0, vf_coef=0,
+                tensorboard_log="CSGTask/Plots/a2c_CSG_tensorboard/",
+                policy_kwargs={'feature_extraction':"mlp", 'act_fun':tf.nn.tanh ,'n_lstm':200, 'net_arch':[2, 'lstm', 200, 1]})
 
     # Train
     print("Start Training")
-    model.learn(total_timesteps=numSteps*conditions*Train_cycle, log_interval=numSteps*conditions)
+    model.learn(total_timesteps=numSteps*conditions*Train_cycle, log_interval=numSteps*conditions, 
+                tb_log_name="RunNr", reset_num_timesteps=True)
     model.save('CSGTask/Models/CSGModel')
     print("Done")
 
@@ -126,7 +124,6 @@ if runTrained:
 
     # Evaluate Model
     # mean_reward, std_reward = evaluate_policy(modelTrained, envRunTrained, n_eval_episodes=10)
-
     for i_episode in range(conditions):
         observation = envRunTrained.reset()
         for t in range(numSteps):

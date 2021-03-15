@@ -132,7 +132,7 @@ class MotorTiming(ngym.TrialEnv):
         'tags': ['timing', 'go-no-go', 'supervised']
     }
 
-    def __init__(self, dt=1, rewards=None, timing=None, training=True):
+    def __init__(self, dt=1, rewards=None, timing=None, training=False):
         super().__init__(dt=dt)
         self.production_ind = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
         self.intervals = [720, 760, 800, 840, 880, 1420, 1460, 1500, 1540, 1580] 
@@ -147,7 +147,7 @@ class MotorTiming(ngym.TrialEnv):
         self.trial_nr = 1
 
         # Binary Rewards for incorrect and correct
-        self.rewards = {'incorrect': 0., 'correct': +1., 'completed': +2.}
+        self.rewards = {'incorrect': 0., 'correct': +1.}
         if rewards:
             self.rewards.update(rewards)     
 
@@ -161,12 +161,18 @@ class MotorTiming(ngym.TrialEnv):
         self.abort = False
         # Set Action and Observation Space
         # Allow Ramping between 0-1
-        self.action_space = spaces.Box(0, 1.1, shape=(1,), dtype=np.float32)  
-
+        self.action_space = spaces.Box(0, 1, shape=(1,), dtype=np.float32)  
+# Does not seem to reach 1 
         # Context Cue: Burn Time followed by Cue & Set Cue: Wait followed by Set Spike
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(4,), dtype=np.float32)
 
     def _new_trial(self, **kwargs):
+        # Define Times
+        self.trialDuration = 3500
+        self.waitTime = int(self.rng.uniform(100, 200))
+        self.burn = 50
+        self.set = 20
+
         # Choose index (0-9) at Random
         trial = {
             'production_ind': self.rng.choice(self.production_ind)
@@ -174,7 +180,7 @@ class MotorTiming(ngym.TrialEnv):
 
         # Choose index by Cycling through all conditions for Training
         if self.training == True: 
-            trial['production_ind'] = self.production_ind[(self.trial_nr % 8)-1]
+            trial['production_ind'] = self.production_ind[(self.trial_nr % 10)-1]
 
         trial.update(kwargs)
 
@@ -184,14 +190,8 @@ class MotorTiming(ngym.TrialEnv):
         # Select corresponding context cue (Signal + 0.5% Noise)
         contextSignal = self.context_mag[trial['production_ind']]
         noiseSigmaContext = contextSignal * 0.005
-        contextNoise = np.random.normal(0, noiseSigmaContext, 3450)
+        contextNoise = np.random.normal(0, noiseSigmaContext, (self.trialDuration-self.burn))
         contextCue = contextSignal + contextNoise
-
-        # Define Times
-        self.trialDuration = 3500
-        self.waitTime = int(self.rng.uniform(100, 200))
-        self.burn = 50
-        self.set = 20
 
         # Define periods
         self.add_period('burn', duration= self.burn)
@@ -233,30 +233,35 @@ class MotorTiming(ngym.TrialEnv):
         new_trial = False
         waitTime = self.waitTime
 
-        if self.in_period('burn') or self.in_period('wait') or self.in_period('set'):
-            if action == 0: # Shouldn't act during Burn, Wait or Set
+        if self.in_period('burn'):
+            self.SetReward=False
+            self.ThresholdReward=False
+
+        if self.in_period('set'):
+            if action == 0: # Should start at 0
                 reward = self.rewards['correct']
+                self.SetReward=True
+
+            if self.SetReward==True:
+                reward = self.rewards['correct']
+                self.performance = 1
 
         if self.in_period('production'): 
-            if action == gt: # Act during Production should be Ground Truth
-                reward = self.rewards['correct']
-            else: 
-                reward = self.rewards['incorrect']
-
-            if  0.95 < action <= 1: # Measure Produced_Interval when Action reaches 1
-# Interval, since it does not seem to reach 1 without training 
-                t_prod = self.t - self.end_t['set']  # Time from Set till Action == 1
+            if  0.90 <= action: # Measure Produced_Interval when Action is close to 1
+                t_prod = self.t - self.end_t['set']  # Time from Set till Action <= 0.9
                 eps = abs(t_prod - trial['production']) # Difference between Produced_Interval and Interval
-                eps_threshold = 10
-# Redefine Threshold here as well
-                # int(self.prod_margin*trial['production'])
+                eps_threshold = int(trial['production']*0.005) # Allowed margin to produced interval
 
-                if eps < eps_threshold: # If Difference is below Threshold, Finish Trial
+                if eps < eps_threshold: # If Difference is below Margin, Finish Trial
                     new_trial = True
-                    reward = self.rewards['completed']
-                    self.performance = 1
+                    reward = self.rewards['correct']
+                    self.ThresholdReward=True
                 else:
                     reward = self.rewards['incorrect']
+
+            if self.ThresholdReward==True:
+                reward = self.rewards['correct']
+                self.performance = 1
 
         if new_trial==True:
             self.trial_nr += 1
