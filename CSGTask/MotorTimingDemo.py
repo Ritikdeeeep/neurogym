@@ -25,17 +25,24 @@ task = 'MotorTiming-v0'
 numSteps = 3500 # Number of Steps
 conditions = 10 # Number of Conditions
 
+# Define Hyperparameters
 numTrials = 10 # Number of Trials for Plot
-Run_cycle = 5 # Number of Cycles for Run
-Train_cycle = 3 # Number of Cycles for Training
+Run_cycle = 1 # Number of Cycles for Run
+Train_cycle = 30 # Number of Cycles for Training
     # TotalSteps= 3500 * 10 * Train_cycle
+
+LR = 5*(10**-5) # Learning Rate
+InputNoise = 0.00075
+TargetThreshold = 0.01
+
+ModelDir='IN{}%_TT{}%/{}Cycles_{}LR'.format(InputNoise*100, TargetThreshold*100, Train_cycle, LR)
 
 # Plot Env
 if plot:
     print("Plot Environment")
 
     # Define Env
-    kwargs = {'training': False}
+    kwargs = {'training': False, 'InputNoise': InputNoise, 'TargetThreshold': TargetThreshold}
     envPlot = gym.make(task, **kwargs)
     env_data = plotting.run_env(envPlot, num_steps=numSteps, num_trials=numTrials, def_act=0)
 
@@ -67,9 +74,10 @@ if run:
     print("Run Environment")
 
     # Define Env
-    kwargs = {'training': True}
+    kwargs = {'training': True, 'InputNoise': InputNoise, 'TargetThreshold': TargetThreshold}
     envRun = gym.make(task, **kwargs)
-
+    envRun = monitor.Monitor(envRun, folder='CSGTask/Plots/Run/'+ModelDir, sv_per=numSteps, verbose=False, sv_fig=True, num_stps_sv_fig=numSteps)
+    
     # Run
     for i_episode in range(conditions*Run_cycle):
         observation = envRun.reset()
@@ -77,7 +85,8 @@ if run:
             action = envRun.action_space.sample()
             observation, reward, done, info = envRun.step(action)
             if done:
-                print("Episode finished after {} timesteps".format((t+1)-info['waitTime']))
+                print("Episode finished after {} timesteps".format((t+1)-info['Burn_WaitTime']))
+                print(info['Interval'])
                 break
 
     envRun.close()
@@ -87,24 +96,26 @@ if train:
     print("Train Environment")
 
     # Define Env
-    kwargs = {'training': True}
+    kwargs = {'training': True, 'InputNoise': InputNoise, 'TargetThreshold': TargetThreshold}
     envTrain = gym.make(task, **kwargs)
     envTrain.reset()
-    envTrain = monitor.Monitor(envTrain, folder='CSGTask/Plots/', sv_per=numSteps, verbose=False, sv_fig=True, num_stps_sv_fig=3500)
+    envTrain = monitor.Monitor(envTrain, folder='CSGTask/Plots/Train/', 
+                                sv_per=numSteps, verbose=False, sv_fig=True, num_stps_sv_fig=3500)
     envTrain = DummyVecEnv([lambda: envTrain])
 
+
     # Define Model
-    model = A2C(LstmPolicy, envTrain, verbose=1, gamma=1, alpha=1,  
-                lr_schedule='constant', learning_rate=(1*(10**-4)),
-                ent_coef=0, vf_coef=0,
-                tensorboard_log="CSGTask/Plots/a2c_CSG_tensorboard/",
+    model = A2C(LstmPolicy, envTrain, verbose=1, 
+                gamma=1, alpha=1,  
+                lr_schedule='constant', learning_rate=LR,
+                tensorboard_log="CSGTask/Models/a2c_CSG_tensorboard/",
                 policy_kwargs={'feature_extraction':"mlp", 'act_fun':tf.nn.tanh ,'n_lstm':200, 'net_arch':[2, 'lstm', 200, 1]})
 
     # Train
     print("Start Training")
     model.learn(total_timesteps=numSteps*conditions*Train_cycle, log_interval=numSteps*conditions, 
-                tb_log_name="RunNr", reset_num_timesteps=True)
-    model.save('CSGTask/Models/CSGModel')
+                tb_log_name=ModelDir, reset_num_timesteps=True)
+    model.save('CSGTask/Models/CSGModels/'+ModelDir+'.zip')
     print("Done")
 
     envTrain.close()
@@ -114,23 +125,25 @@ if runTrained:
     print("Run Trained Environment")
 
     # Define Env
-    kwargs = {'training': False}
+    kwargs = {'training': False, 'InputNoise': InputNoise, 'TargetThreshold': TargetThreshold}
     envRunTrained = gym.make(task, **kwargs)
+    envRunTrained = monitor.Monitor(envRunTrained, folder='CSGTask/Plots/RunTrained/', sv_per=numSteps, verbose=False, sv_fig=True, num_stps_sv_fig=3500)
     envRunTrained = DummyVecEnv([lambda: envRunTrained])
 
     # Define Model
-    modelTrained = A2C.load(load_path = '/Users/ritikmehta/School/Bsc_NB3/BEP/neurogym/CSGTask/Models/CSGModel.zip', 
+    modelTrained = A2C.load(load_path = '/Users/ritikmehta/School/Bsc_NB3/BEP/neurogym/CSGTask/Models/CSGModels/IN0.3%_TT1.0%/30Cycles_1e-05LR.zip', 
                             env = envRunTrained)
 
     # Evaluate Model
     # mean_reward, std_reward = evaluate_policy(modelTrained, envRunTrained, n_eval_episodes=10)
-    for i_episode in range(conditions):
+    for i_episode in range(conditions*Run_cycle):
         observation = envRunTrained.reset()
         for t in range(numSteps):
             action = modelTrained.predict(observation)
             observation, reward, done, info = envRunTrained.step(action)
             if done:
-                print("Episode finished after {} timesteps".format((t+1)))
+                print("Episode finished after {} timesteps".format((t+1)-info['Burn_WaitTime']))
+                print(info['Interval'])
                 break
         print("Reach End")
 

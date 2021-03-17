@@ -24,7 +24,7 @@ class CSG(ngym.TrialEnv):
         'tags': ['timing', 'go-no-go', 'supervised']
     }
 
-    def __init__(self, dt=1, rewards=None, timing=None, training=True):
+    def __init__(self, dt=1, rewards=None, timing=None, training=False, InputNoise=None, TargetThreshold=None):
         super().__init__(dt=dt)
         self.production_ind = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
         self.intervals = [720, 760, 800, 840, 880, 1420, 1460, 1500, 1540, 1580] 
@@ -35,13 +35,15 @@ class CSG(ngym.TrialEnv):
         # self.weberFraction = float((100-50)/(1500-800))
         # self.prod_margin = self.weberFraction
 
-        self.training = training
+        self.training = training 
         self.trial_nr = 1
+        self.InputNoise = InputNoise
+        self.TargetThreshold = TargetThreshold
 
         # Binary Rewards for incorrect and correct
         self.rewards = {'incorrect': 0., 'correct': +1.}
         if rewards:
-            self.rewards.update(rewards)
+            self.rewards.update(rewards)     
 
         self.timing = { 
             'cue': 50,
@@ -53,21 +55,28 @@ class CSG(ngym.TrialEnv):
         self.abort = False
         # Set Action and Observation Space
         # Allow Ramping between 0-1
-# Correct action space to allow for ramping
-        self.action_space = spaces.Box(0, 1, shape=(1,), dtype=np.float32)  
-
+        self.action_space = spaces.Box(0, 1, shape=(1,), dtype=np.float32)   
         # Context Cue: Burn Time followed by Cue & Set Cue: Wait followed by Set Spike
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(4,), dtype=np.float32)
 
     def _new_trial(self, **kwargs):
-        # Choose index (0-7) at Random
-        trial = {
-            'production_ind': self.rng.choice(self.production_ind)
-        }
+        # Define Times
+        self.trialDuration = 3500
+        self.waitTime = int(self.rng.uniform(100, 200))
+        self.burn = 50
+        self.set = 20
+
+        # Choose index (0-9) at Random
+        if self.training == False:
+            trial = {
+                'production_ind': self.rng.choice(self.production_ind)
+            }
 
         # Choose index by Cycling through all conditions for Training
         if self.training == True: 
-            trial['production_ind'] = self.production_ind[(self.trial_nr % 8)-1]
+            trial = {
+                'production_ind': self.production_ind[(self.trial_nr % 10)-1]
+            }
 
         trial.update(kwargs)
 
@@ -76,15 +85,9 @@ class CSG(ngym.TrialEnv):
 
         # Select corresponding context cue (Signal + 0.5% Noise)
         contextSignal = self.context_mag[trial['production_ind']]
-        noiseSigmaContext = contextSignal * 0.005
-        contextNoise = np.random.normal(0, noiseSigmaContext, 3450)
+        noiseSigmaContext = contextSignal * self.InputNoise
+        contextNoise = np.random.normal(0, noiseSigmaContext, (self.trialDuration-self.burn))
         contextCue = contextSignal + contextNoise
-
-        # Define Times
-        self.trialDuration = 3500
-        self.waitTime = int(self.rng.uniform(100, 200))
-        self.burn = 50
-        self.set = 20
 
         # Define periods
         self.add_period('burn', duration= self.burn)
@@ -108,52 +111,54 @@ class CSG(ngym.TrialEnv):
         ob = self.view_ob('set')
         ob[:, 3] = 0.4
         
-        # Set Ground Truth to Form Ramp
+        # Set Ground Truth to Form Ramp & Reshape to Match Action Space
         t_ramp = range(0, int(trial['production']))
         gt_ramp = np.multiply(1/trial['production'], t_ramp)
         gt_step = np.ones((int((self.trialDuration-(trial['production']+self.set+self.waitTime+self.burn))/self.dt),), dtype=np.float)
         gt = np.concatenate((gt_ramp, gt_step)).astype(np.float)
-        gt = np.reshape(gt, [self.trialDuration-(self.set+self.waitTime+self.burn) / self.dt] + list(self.action_space.shape))
+        gt = np.reshape(gt, [int(self.trialDuration-(self.set+self.waitTime+self.burn)/self.dt)] + list(self.action_space.shape))
         self.set_groundtruth(gt, period='production')
 
         return trial
 
     def _step(self, action):
-        # ---------------------------------------------------------------------
-        # Reward and inputs
-        # ---------------------------------------------------------------------
         trial = self.trial
         reward = 0
         ob = self.ob_now
-        gt = float(self.gt_now)
+        gt = self.gt_now
         new_trial = False
-        wait_Time = self.waitTime
 
-        if self.in_period('burn') or self.in_period('wait'):
-            if action != 0:
-                new_trial = self.abort
-                reward = self.rewards['incorrect']
+        if self.in_period('burn'):
+            self.SetReward = False
+            self.ThresholdReward = False
+
+        if self.in_period('set'):
+            if action == 0: # Should start at 0
+                reward = self.rewards['correct']
+                self.SetReward = True
+
+            if self.SetReward:
+                reward = self.rewards['correct']
+                self.performance = 1
 
         if self.in_period('production'): 
-            if action == 1:
-                t_prod = self.t - self.end_t['set']  # Time from set till end of measure
-                eps = abs(t_prod - trial['production']) # Difference between Produced and Interval
-# Redefine threshold to only consider the mean value
-                # eps_threshold = int(self.prod_margin*trial['production']) # Threshold on Production Time
-                eps_threshold = 3
+            if  action >= 0.90: # Measure Produced_Interval when Action is over Threshold
+                t_prod = self.t - self.end_t['set']  # Time from Set till Action <= 0.9 
+                eps = abs(t_prod - trial['production']) # Difference between Produced_Interval and Interval
+                eps_threshold = int(trial['production']*self.TargetThreshold) # Allowed margin to produced interval
 
-                if eps > eps_threshold:
-                    reward = self.rewards['incorrect']
-                else:
-                    new_trial = True  # New trail, because now its in the correct period and over threshold
-# Redefine reward for correct as 1
-                    #reward = (1. - eps/eps_threshold)**1.5
-                    #reward = max(reward, 0.25)
-                    #reward *= self.rewards['correct']
+                if eps <= eps_threshold: # If Difference is below Margin, Finish Trial
+                    new_trial = True
                     reward = self.rewards['correct']
-                    self.performance = 1
+                    self.ThresholdReward = True
+                else:
+                    reward = self.rewards['incorrect']
 
-        if new_trial==True:
+            if self.ThresholdReward == True:
+                reward = self.rewards['correct']
+                self.performance = 1
+
+        if new_trial == True:
             self.trial_nr += 1
 
-        return ob, reward, new_trial, {'new_trial': new_trial, 'gt': gt, 'wait_time': wait_Time}
+        return ob, reward, new_trial, {'new_trial': new_trial, 'gt': gt, 'Burn_WaitTime': self.waitTime+self.burn, 'Interval': trial['production'], }
