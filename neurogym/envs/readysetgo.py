@@ -242,7 +242,7 @@ class MotorTiming(ngym.TrialEnv):
             self.TimeAfterThreshold = 0
 
         if self.in_period('set'):
-            if action == 0: # Should start at 0
+            if action <= 0.05: # Should start close to 0
                 reward = self.rewards['correct']
                 self.SetReward = True
 
@@ -251,31 +251,29 @@ class MotorTiming(ngym.TrialEnv):
                 self.performance = 1
 
         if self.in_period('production'): 
-            if  action >= 0.90: # Measure Produced_Interval when Action is over Threshold
-                t_prod = self.t - self.end_t['set']  # Time from Set till Action <= 0.9 
+            if  action >= 0.90: # Action is over Threshold
+                t_prod = self.t - self.end_t['set']  # Measure Time from Set
                 eps = abs(t_prod - trial['production']) # Difference between Produced_Interval and Interval
                 eps_threshold = int(trial['production']*self.TargetThreshold) # Allowed margin to produced interval
 
                 if eps <= eps_threshold: # If Difference is below Margin, Finish Trial
-                    # new_trial = True
-# Causes the trial to end already, so no Threshold Rewards
                     reward = self.rewards['correct']
                     self.ThresholdReward = True
                 else:
                     reward = self.rewards['incorrect']
 
-            if self.ThresholdReward:
+            if self.ThresholdReward == True:
                 reward = self.rewards['correct']
                 self.performance = 1
                 self.TimeAfterThreshold += 1
-# Give reward 100 steps after Success
-                if self.TimeAfterThreshold >= 100:
+
+                if self.TimeAfterThreshold >= 100: # Give reward 100 steps after Success
                     new_trial = True
 
         if new_trial == True:
             self.trial_nr += 1
 
-        return ob, reward, new_trial, {'new_trial': new_trial, 'gt': gt, 'Burn_WaitTime': self.waitTime+self.burn, 'Interval': trial['production'], }
+        return ob, reward, new_trial, {'new_trial': new_trial, 'gt': gt, 'Burn_WaitTime': self.waitTime+self.burn, 'Interval': trial['production'], 'ThresholdDelay': 100 }
 
 class OneTwoThreeGo(ngym.TrialEnv):
     r"""Agents reproduce time intervals based on two samples.

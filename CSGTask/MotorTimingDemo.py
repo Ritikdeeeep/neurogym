@@ -27,12 +27,12 @@ conditions = 10 # Number of Conditions
 
 # Define Hyperparameters
 numTrials = 10 # Number of Trials for Plot
-Run_cycle = 1 # Number of Cycles for Run
+Run_cycle = 5 # Number of Cycles for Run
 Train_cycle = 30 # Number of Cycles for Training
     # TotalSteps= 3500 * 10 * Train_cycle
 
 LR = 5*(10**-5) # Learning Rate
-InputNoise = 0.00075
+InputNoise = 0.001
 TargetThreshold = 0.01
 
 ModelDir='IN{}%_TT{}%/{}Cycles_{}LR'.format(InputNoise*100, TargetThreshold*100, Train_cycle, LR)
@@ -76,7 +76,8 @@ if run:
     # Define Env
     kwargs = {'training': True, 'InputNoise': InputNoise, 'TargetThreshold': TargetThreshold}
     envRun = gym.make(task, **kwargs)
-    envRun = monitor.Monitor(envRun, folder='CSGTask/Plots/Run/'+ModelDir, sv_per=numSteps, verbose=False, sv_fig=True, num_stps_sv_fig=numSteps)
+    envRun = monitor.Monitor(envRun, folder='CSGTask/Plots/Run/'+ModelDir, 
+                            sv_per=numSteps, verbose=False, sv_fig=True, num_stps_sv_fig=numSteps)
     
     # Run
     for i_episode in range(conditions*Run_cycle):
@@ -85,7 +86,7 @@ if run:
             action = envRun.action_space.sample()
             observation, reward, done, info = envRun.step(action)
             if done:
-                print("Episode finished after {} timesteps".format((t+1)-info['Burn_WaitTime']))
+                print("Episode finished after {} timesteps".format((t+1)-info['Burn_WaitTime']-info['ThresholdDelay']))
                 print(info['Interval'])
                 break
 
@@ -100,9 +101,8 @@ if train:
     envTrain = gym.make(task, **kwargs)
     envTrain.reset()
     envTrain = monitor.Monitor(envTrain, folder='CSGTask/Plots/Train/', 
-                                sv_per=numSteps, verbose=False, sv_fig=True, num_stps_sv_fig=3500)
+                                sv_per=numSteps, verbose=False, sv_fig=True, num_stps_sv_fig=numSteps)
     envTrain = DummyVecEnv([lambda: envTrain])
-
 
     # Define Model
     model = A2C(LstmPolicy, envTrain, verbose=1, 
