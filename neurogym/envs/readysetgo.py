@@ -268,12 +268,18 @@ class MotorTiming(ngym.TrialEnv):
                 self.TimeAfterThreshold += 1
 
                 if self.TimeAfterThreshold >= 100: # Give reward 100 steps after Success
+# 100 steps or till end of trial duration?
                     new_trial = True
 
         if new_trial == True:
             self.trial_nr += 1
 
-        return ob, reward, new_trial, {'new_trial': new_trial, 'gt': gt, 'Burn_WaitTime': self.waitTime+self.burn, 'Interval': trial['production'], 'ThresholdDelay': 100 }
+        return ob, reward, new_trial, {
+            'new_trial': new_trial, 
+            'gt': gt, 
+            'Burn_WaitTime': self.waitTime+self.burn, 
+            'Interval': trial['production'], 
+            'ThresholdDelay': 100}
 
 class OneTwoThreeGo(ngym.TrialEnv):
     r"""Agents reproduce time intervals based on two samples.

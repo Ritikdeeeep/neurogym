@@ -10,6 +10,7 @@ from neurogym.wrappers import monitor
 from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.evaluation import evaluate_policy
+from stable_baselines.common.schedules import LinearSchedule
 from stable_baselines import A2C
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
@@ -28,11 +29,12 @@ conditions = 10 # Number of Conditions
 # Define Hyperparameters
 numTrials = 10 # Number of Trials for Plot
 Run_cycle = 5 # Number of Cycles for Run
-Train_cycle = 30 # Number of Cycles for Training
+Train_cycle = 60 # Number of Cycles for Training
     # TotalSteps= 3500 * 10 * Train_cycle
 
-LR = 5*(10**-5) # Learning Rate
-InputNoise = 0.001
+#LR = 3*(10**-5) # Learning Rate
+LR = 'Linear_5e-6'
+InputNoise = 0.005
 TargetThreshold = 0.01
 
 ModelDir='IN{}%_TT{}%/{}Cycles_{}LR'.format(InputNoise*100, TargetThreshold*100, Train_cycle, LR)
@@ -106,8 +108,8 @@ if train:
 
     # Define Model
     model = A2C(LstmPolicy, envTrain, verbose=1, 
-                gamma=1, alpha=1,  
-                lr_schedule='constant', learning_rate=LR,
+                gamma=1, alpha=1, #max_grad_norm=0.25,
+                lr_schedule='linear', learning_rate=5*(10**-6), 
                 tensorboard_log="CSGTask/Models/a2c_CSG_tensorboard/",
                 policy_kwargs={'feature_extraction':"mlp", 'act_fun':tf.nn.tanh ,'n_lstm':200, 'net_arch':[2, 'lstm', 200, 1]})
 
@@ -131,18 +133,17 @@ if runTrained:
     envRunTrained = DummyVecEnv([lambda: envRunTrained])
 
     # Define Model
-    modelTrained = A2C.load(load_path = '/Users/ritikmehta/School/Bsc_NB3/BEP/neurogym/CSGTask/Models/CSGModels/IN0.3%_TT1.0%/30Cycles_1e-05LR.zip', 
+    modelTrained = A2C.load(load_path = '/Users/ritikmehta/School/Bsc_NB3/BEP/neurogym/CSGTask/Models/CSGModels/IN0.5%_TT1.0%/30Cycles_1e-05LR.zip', 
                             env = envRunTrained)
 
     # Evaluate Model
-    # mean_reward, std_reward = evaluate_policy(modelTrained, envRunTrained, n_eval_episodes=10)
     for i_episode in range(conditions*Run_cycle):
         observation = envRunTrained.reset()
         for t in range(numSteps):
             action = modelTrained.predict(observation)
             observation, reward, done, info = envRunTrained.step(action)
             if done:
-                print("Episode finished after {} timesteps".format((t+1)-info['Burn_WaitTime']))
+                print("Episode finished after {} timesteps".format((t+1)-info['Burn_WaitTime']-info['ThresholdDelay']))
                 print(info['Interval'])
                 break
         print("Reach End")
