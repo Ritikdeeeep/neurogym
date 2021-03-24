@@ -1,3 +1,5 @@
+# Implement Supervised Learning RNN as by David Sussillo
+
 # Libraries
 import warnings
 import gym
@@ -29,12 +31,12 @@ conditions = 10 # Number of Conditions
 # Define Hyperparameters
 numTrials = 10 # Number of Trials for Plot
 Run_cycle = 5 # Number of Cycles for Run
-Train_cycle = 60 # Number of Cycles for Training
+Train_cycle = 100 # Number of Cycles for Training
     # TotalSteps= 3500 * 10 * Train_cycle
 
-#LR = 3*(10**-5) # Learning Rate
-LR = 'Linear_5e-6'
-InputNoise = 0.005
+LR = 5*(10**-5) # Learning Rate
+#LR = 'Linear_5e-6'
+InputNoise = 0
 TargetThreshold = 0.01
 
 ModelDir='IN{}%_TT{}%/{}Cycles_{}LR'.format(InputNoise*100, TargetThreshold*100, Train_cycle, LR)
@@ -109,7 +111,7 @@ if train:
     # Define Model
     model = A2C(LstmPolicy, envTrain, verbose=1, 
                 gamma=1, alpha=1, #max_grad_norm=0.25,
-                lr_schedule='linear', learning_rate=5*(10**-6), 
+                learning_rate=LR, #lr_schedule='linear', 
                 tensorboard_log="CSGTask/Models/a2c_CSG_tensorboard/",
                 policy_kwargs={'feature_extraction':"mlp", 'act_fun':tf.nn.tanh ,'n_lstm':200, 'net_arch':[2, 'lstm', 200, 1]})
 

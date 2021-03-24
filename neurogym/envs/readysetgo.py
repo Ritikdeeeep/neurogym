@@ -220,6 +220,7 @@ class MotorTiming(ngym.TrialEnv):
         ob[:, 3] = 0.4
         
         # Set Ground Truth to Form Ramp & Reshape to Match Action Space
+# Implement NaN target function (only in Set and After Threshold Crossing)
         t_ramp = range(0, int(trial['production']))
         gt_ramp = np.multiply(1/trial['production'], t_ramp)
         gt_step = np.ones((int((self.trialDuration-(trial['production']+self.set+self.waitTime+self.burn))/self.dt),), dtype=np.float)
