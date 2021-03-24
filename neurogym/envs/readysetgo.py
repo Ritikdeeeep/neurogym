@@ -220,13 +220,20 @@ class MotorTiming(ngym.TrialEnv):
         ob[:, 3] = 0.4
         
         # Set Ground Truth to Form Ramp & Reshape to Match Action Space
-# Implement NaN target function (only in Set and After Threshold Crossing)
-        t_ramp = range(0, int(trial['production']))
-        gt_ramp = np.multiply(1/trial['production'], t_ramp)
-        gt_step = np.ones((int((self.trialDuration-(trial['production']+self.set+self.waitTime+self.burn))/self.dt),), dtype=np.float)
-        gt = np.concatenate((gt_ramp, gt_step)).astype(np.float)
-        gt = np.reshape(gt, [int(self.trialDuration-(self.set+self.waitTime+self.burn)/self.dt)] + list(self.action_space.shape))
-        self.set_groundtruth(gt, period='production')
+        # t_ramp = range(0, int(trial['production']))
+        # gt_ramp = np.multiply(1/trial['production'], t_ramp)
+        # gt_step = np.ones((int((self.trialDuration-(trial['production']+self.set+self.waitTime+self.burn))/self.dt),), dtype=np.float)
+        # gt = np.concatenate((gt_ramp, gt_step)).astype(np.float)
+        # gt = np.reshape(gt, [int(self.trialDuration-(self.set+self.waitTime+self.burn)/self.dt)] + list(self.action_space.shape))
+        # self.set_groundtruth(gt, period='production')
+
+        # Set Ground Truth as 0 at set and 1 at trial production with NaN inbetween       
+        gt = np.empty([int((self.trialDuration/self.dt)),])
+        gt[:] = np.nan
+        gt[0:self.burn+self.waitTime+self.set] = 0
+        gt[int(trial['production']):-1] = 1
+        gt = np.reshape(gt, [int(self.trialDuration/self.dt)] + list(self.action_space.shape))
+        self.set_groundtruth(gt)
 
         return trial
 

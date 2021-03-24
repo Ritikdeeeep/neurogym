@@ -17,8 +17,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 warnings.filterwarnings('ignore')
 
 # Define Parameters
-plot = False
-run = True
+plot = True
+run = False
 train = False
 runTrained = False
 
@@ -27,7 +27,7 @@ numSteps = 3500 # Number of Steps
 conditions = 10 # Number of Conditions
 
 # Define Hyperparameters
-numTrials = 10 # Number of Trials for Plot
+numTrials = 1 # Number of Trials for Plot
 Run_cycle = 1 # Number of Cycles for Run
 Train_cycle = 100 # Number of Cycles for Training
     # TotalSteps= 3500 * 10 * Train_cycle
