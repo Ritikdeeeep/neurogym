@@ -29,7 +29,7 @@ import numpy as onp  # original CPU-backed NumPy
 import os
 import time
 
-import utils as utils
+import SL_Sussillo.utils as utils
 
 MAX_SEED_INT = 10000000
 
