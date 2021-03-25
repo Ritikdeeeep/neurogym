@@ -165,7 +165,7 @@ class MotorTiming(ngym.TrialEnv):
         # Allow Ramping between 0-1
         self.action_space = spaces.Box(0, 1, shape=(1,), dtype=np.float32)   
         # Context Cue: Burn Time followed by Cue & Set Cue: Wait followed by Set Spike
-        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(4,), dtype=np.float32)
+        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(2,), dtype=np.float32)
 
     def _new_trial(self, **kwargs):
         # Define Times
@@ -208,25 +208,15 @@ class MotorTiming(ngym.TrialEnv):
         ob = self.view_ob('burn')
         ob[:, 0] = 0
         ob[:, 1] = 0
-        ob[:, 2] = 0
-        ob[:, 3] = 0
 
         # Set Cue to contextCue
         ob = self.view_ob('cue')
-        ob[:, 1] = contextCue
+        ob[:, 0] = contextCue
 
         # Set Set to 0.4
         ob = self.view_ob('set')
-        ob[:, 3] = 0.4
+        ob[:, 1] = 0.4
         
-        # Set Ground Truth to Form Ramp & Reshape to Match Action Space
-        # t_ramp = range(0, int(trial['production']))
-        # gt_ramp = np.multiply(1/trial['production'], t_ramp)
-        # gt_step = np.ones((int((self.trialDuration-(trial['production']+self.set+self.waitTime+self.burn))/self.dt),), dtype=np.float)
-        # gt = np.concatenate((gt_ramp, gt_step)).astype(np.float)
-        # gt = np.reshape(gt, [int(self.trialDuration-(self.set+self.waitTime+self.burn)/self.dt)] + list(self.action_space.shape))
-        # self.set_groundtruth(gt, period='production')
-
         # Set Ground Truth as 0 at set and 1 at trial production with NaN inbetween       
         gt = np.empty([int((self.trialDuration/self.dt)),])
         gt[:] = np.nan
@@ -276,8 +266,8 @@ class MotorTiming(ngym.TrialEnv):
                 self.TimeAfterThreshold += 1
 
                 if self.TimeAfterThreshold >= 100: # Give reward 100 steps after Success
-# 100 steps or till end of trial duration?
                     new_trial = True
+                    self.ThresholdReward = False
 
         if new_trial == True:
             self.trial_nr += 1

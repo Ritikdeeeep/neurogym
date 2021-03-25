@@ -111,3 +111,35 @@ figures/
 docs/source/envs/images/
 docs/source/_static/
 .DS_Store
+CSGTask/Models/CSG_RL_Tensorboard/Wrong Coefficients/5Cycles_0.001LR_1/events.out.tfevents.1615881854.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Wrong Coefficients/5Cycles_0.0005LR_1/events.out.tfevents.1615883462.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Wrong Coefficients/3Cycles_0.0001LR_1/events.out.tfevents.1615828354.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Wrong Coefficients/20Cycles_0.0005LR_1/events.out.tfevents.1615885079.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Wrong Coefficients/20Cycles_0.00001LR_1/events.out.tfevents.1615838807.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/60Cycles_Linear_5e-6LR_1/events.out.tfevents.1616344815.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/60Cycles_5e-05LR_1/events.out.tfevents.1616148294.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/60Cycles_3e-05LR_1/events.out.tfevents.1616327356.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/5Cycles_Linear_5e-5LR_1/events.out.tfevents.1616339059.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/5Cycles_Linear_5e-4LR_1/events.out.tfevents.1616338019.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/5Cycles_5e-06LR_1/events.out.tfevents.1616161703.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/45Cycles_1e-05LR_GradientClipping/events.out.tfevents.1616320779.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/30Cycles_Linear_10e-5LR_1/events.out.tfevents.1616340231.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/30Cycles_5e-05LR_1/events.out.tfevents.1616143379.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/30Cycles_3e-05LR_1/events.out.tfevents.1616316288.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/30Cycles_1e-05LR_1/events.out.tfevents.1616157168.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/15Cycles_5e-06LR_1/events.out.tfevents.1616163161.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.1%_TT1.0%/50Cycles_5e-05LR_1/events.out.tfevents.1616005900.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.1%_TT1.0%/30Cycles_5e-05LR_1/events.out.tfevents.1615979815.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.1%_TT1.0%/30Cycles_4.9999999999999996e-06LR_1/events.out.tfevents.1616059603.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.1%_TT1.0%/30Cycles_0.05LR_1/events.out.tfevents.1616054133.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.1%_TT1.0%/30Cycles_0.005LR_1/events.out.tfevents.1616001094.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.1%_TT1.0%/30Cycles_0.0005LR_1/events.out.tfevents.1615986997.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0.1%_TT1.0%/2Cycles_4.9999999999999996e-06LR_1/events.out.tfevents.1616069230.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/Ramp Target/IN0%_TT1.0%/100Cycles_5e-05LR_1/events.out.tfevents.1616419498.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/No Threshold Delay/IN0.1%_TT1.0%/30Cycles_5e-05LR_1/events.out.tfevents.1615896529.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/No Threshold Delay/IN0.1%_TT1.0%/30Cycles_1e-05LR_1/events.out.tfevents.1615906251.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/No Threshold Delay/IN0.1%_TT1.0%/30Cycles_0.005LR_1/events.out.tfevents.1615901525.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/No Threshold Delay/IN0.1%_TT1.0%/30Cycles_0.0005LR_1/events.out.tfevents.1615887550.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/No Threshold Delay/IN0.075%_TT1.0%/30Cycles_5e-05LR_1/events.out.tfevents.1615973882.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/IN0%_TT1.0%/45Cycles_5e-05LR_1/events.out.tfevents.1616590445.MacBook-Pro.local
+CSGTask/Models/CSG_RL_Tensorboard/IN0%_TT1.0%/30Cycles_5e-05LR_1/events.out.tfevents.1616661844.MacBook-Pro.local
