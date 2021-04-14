@@ -29,8 +29,12 @@ class CSG_RL(ngym.TrialEnv):
         'tags': ['timing', 'go-no-go', 'supervised']
     }
 
-    def __init__(self, dt=1, rewards=None, timing=None, training=False, InputNoise=None, TargetThreshold=None):
+    def __init__(self, dt=1, params=None):
         super().__init__(dt=dt)
+        # Unpack Parameters
+        Training, InputNoise, TargetThreshold, ThresholdDelay = params
+
+        # Several different intervals: their length and corresponding magnitude
         self.production_ind = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
         self.intervals = [720, 760, 800, 840, 880, 1420, 1460, 1500, 1540, 1580] 
         self.context_mag= np.add(np.multiply((0.3/950), self.intervals), (0.2-(0.3/950)*700))
@@ -39,39 +43,31 @@ class CSG_RL(ngym.TrialEnv):
         # Leave out for now, reimplement later otherwise unfair
         # self.weberFraction = float((100-50)/(1500-800))
         # self.prod_margin = self.weberFraction
-
-        self.training = training 
-        self.trial_nr = 1
-        self.InputNoise = InputNoise
-        self.TargetThreshold = TargetThreshold
+        
+        self.training = Training # Training Label
+        self.trial_nr = 1 # Trial Counter
+        
+        self.InputNoise = InputNoise # Input Noise Percentage
+        self.TargetThreshold = TargetThreshold # Target Threshold Percentage
+        self.ThresholdDelay = ThresholdDelay # Reward Delay after Threshold Crossing
 
         # Binary Rewards for incorrect and correct
-        self.rewards = {'incorrect': 0., 'correct': +1.} #, 'wrong': -0.2}
-        if rewards:
-            self.rewards.update(rewards)     
+        self.rewards = {'incorrect': 0., 'correct': +1.} #, 'wrong': -0.2}     
 
-        self.timing = { 
-            'cue': 50,
-            'set': 100}
-            
-        if timing:
-            self.timing.update(timing)
-
-        self.abort = False
         # Set Action and Observation Space
         # Allow Ramping between 0-1
         self.action_space = spaces.Box(0, 1, shape=(1,), dtype=np.float32)   
         # Context Cue: Burn Time followed by Cue & Set Cue: Wait followed by Set Spike
-        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(4,), dtype=np.float32)
+        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(2,), dtype=np.float32)
 
     def _new_trial(self, **kwargs):
         # Define Times
-        self.trialDuration = 3500
-        self.waitTime = int(self.rng.uniform(100, 200))
-        self.burn = 50
-        self.set = 20
+        self.trialDuration = 3500 # Total Trial Duration
+        self.waitTime = int(self.rng.uniform(100, 200)) # Random wait time between burn and set
+        self.burn = 50 # Duration of Burn period before context cue
+        self.set = 20 # Duration of Set Period
 
-        # Choose index (0-9) at Random
+        # Choose interval index (0-9) at Random
         if self.training == False:
             trial = {
                 'production_ind': self.rng.choice(self.production_ind)
@@ -80,15 +76,15 @@ class CSG_RL(ngym.TrialEnv):
         # Choose index by Cycling through all conditions for Training
         if self.training == True: 
             trial = {
-                'production_ind': self.production_ind[(self.trial_nr % 10)-1]
+                'production_ind': self.production_ind[(self.trial_nr % len(self.production_ind))-1]
             }
 
         trial.update(kwargs)
 
-        # Select corresponding interval
+        # Select corresponding interval length
         trial['production'] = self.intervals[trial['production_ind']]
 
-        # Select corresponding context cue (Signal + 0.5% Noise)
+        # Calculate corresponding context cue magnitude (Signal + 0.5% Noise)
         contextSignal = self.context_mag[trial['production_ind']]
         noiseSigmaContext = contextSignal * self.InputNoise
         contextNoise = np.random.normal(0, noiseSigmaContext, (self.trialDuration-self.burn))
@@ -105,16 +101,14 @@ class CSG_RL(ngym.TrialEnv):
         ob = self.view_ob('burn')
         ob[:, 0] = 0
         ob[:, 1] = 0
-        ob[:, 2] = 0
-        ob[:, 3] = 0
 
         # Set Cue to contextCue
         ob = self.view_ob('cue')
-        ob[:, 1] = contextCue
+        ob[:, 0] = contextCue
 
         # Set Set to 0.4
         ob = self.view_ob('set')
-        ob[:, 3] = 0.4
+        ob[:, 1] = 0.4
         
         # Set Ground Truth to Form Ramp & Reshape to Match Action Space
         # t_ramp = range(0, int(trial['production']))
@@ -175,7 +169,7 @@ class CSG_RL(ngym.TrialEnv):
                 self.performance = 1
                 self.TimeAfterThreshold += 1
 
-                if self.TimeAfterThreshold >= 100: # Give reward 100 steps after Success
+                if self.TimeAfterThreshold >= self.ThresholdDelay: # Give reward 100 steps after Success
                     new_trial = True
                     self.ThresholdReward = False
         
@@ -188,6 +182,6 @@ class CSG_RL(ngym.TrialEnv):
         return ob, reward, new_trial, {
             'new_trial': new_trial, 
             'gt': gt, 
-            'Burn_WaitTime': self.waitTime+self.burn, 
+            'SetStart': self.waitTime+self.burn, 
             'Interval': trial['production'], 
-            'ThresholdDelay': 100}
+            'ThresholdDelay': self.ThresholdDelay}

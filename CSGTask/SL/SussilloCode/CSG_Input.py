@@ -28,7 +28,7 @@ import pandas as pd
 
 # Numpy Version with NeuroGym
 def build_input_and_target_NP(input_params, batch):
-  inputNoise, numSteps, training = input_params
+  inputNoise, TargetThreshold, ThresholdDelay, numSteps, training = input_params
   task = 'MotorTiming-v0'
   BatchValues = batch
 
@@ -39,9 +39,9 @@ def build_input_and_target_NP(input_params, batch):
 
   for i in range(len(BatchValues)):
     if training:
-      kwargs = {'training': False, 'InputNoise': inputNoise, 'Scenario': i}
+      kwargs = {'params': (False, inputNoise, TargetThreshold, ThresholdDelay, i)}
     else:
-      kwargs = {'training': False, 'InputNoise': inputNoise, 'Scenario': int(batch[i])}
+      kwargs = {'params': (False, inputNoise, TargetThreshold, ThresholdDelay, int(batch[i]))}
     env = gym.make(task, **kwargs)
     CC, SC, T = env._new_trial(**kwargs)
     CC_DF.loc[i] = CC

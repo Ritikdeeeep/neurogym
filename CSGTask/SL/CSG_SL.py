@@ -32,10 +32,12 @@ warnings.filterwarnings('ignore')
 
 # CSG parameters
 inputNoise = 0 # Context Cue Noise 
+TargetThreshold = 0.01 
+ThresholdDelay = 100
 numSteps = 3500
 numConditions = 10
 training = False
-input_params_NP = (inputNoise, numSteps, training)
+input_params_NP = (inputNoise, TargetThreshold, ThresholdDelay, numSteps, training)
 input_params_JAX = (inputNoise, numSteps, numConditions, training)
 
 # RNN hyperparameters

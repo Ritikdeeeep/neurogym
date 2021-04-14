@@ -143,3 +143,7 @@ CSGTask/Models/CSG_RL_Tensorboard/No Threshold Delay/IN0.1%_TT1.0%/30Cycles_0.00
 CSGTask/Models/CSG_RL_Tensorboard/No Threshold Delay/IN0.075%_TT1.0%/30Cycles_5e-05LR_1/events.out.tfevents.1615973882.MacBook-Pro.local
 CSGTask/Models/CSG_RL_Tensorboard/IN0%_TT1.0%/45Cycles_5e-05LR_1/events.out.tfevents.1616590445.MacBook-Pro.local
 CSGTask/Models/CSG_RL_Tensorboard/IN0%_TT1.0%/30Cycles_5e-05LR_1/events.out.tfevents.1616661844.MacBook-Pro.local
+CSGTask/RL/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/60Cycles_Linear_5e-6LR_1/events.out.tfevents.1616344815.MacBook-Pro.local
+CSGTask/RL/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/60Cycles_5e-05LR_1/events.out.tfevents.1616148294.MacBook-Pro.local
+CSGTask/RL/Models/CSG_RL_Tensorboard/Ramp Target/IN0.5%_TT1.0%/60Cycles_3e-05LR_1/events.out.tfevents.1616327356.MacBook-Pro.local
+CSGTask/RL/Models/CSG_RL_Tensorboard/Ramp Target/IN0%_TT1.0%/100Cycles_5e-05LR_1/events.out.tfevents.1616419498.MacBook-Pro.local

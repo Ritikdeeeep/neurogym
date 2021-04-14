@@ -10,7 +10,9 @@ import jax.numpy as jnp
 import neurogym as ngym
 from neurogym import spaces
 
-class CSG_SL_Numpy(ngym.TrialEnv):
+class CSG_SL_NP(ngym.TrialEnv):
+    # CSG with Superised Learning with Numpy:
+        # To export the observation space and ground truth
     """Agents have to produce different time intervals
     using different effectors (actions).
 
@@ -26,8 +28,11 @@ class CSG_SL_Numpy(ngym.TrialEnv):
         'tags': ['timing', 'go-no-go', 'supervised']
     }
 
-    def __init__(self, dt=1, rewards=None, timing=None, training=False, InputNoise=None, TargetThreshold=0.01, Scenario=None):
+    def __init__(self, dt=1, params=None):
         super().__init__(dt=dt)
+        # Unpack Parameters
+        Training, InputNoise, TargetThreshold, ThresholdDelay, Scenario = params
+
         self.production_ind = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.intervals = [720, 760, 800, 840, 880, 1420, 1460, 1500, 1540, 1580] 
         self.context_mag= np.add(np.multiply((0.3/950), self.intervals), (0.2-(0.3/950)*700))
@@ -37,24 +42,15 @@ class CSG_SL_Numpy(ngym.TrialEnv):
         # self.weberFraction = float((100-50)/(1500-800))
         # self.prod_margin = self.weberFraction
 
-        self.training = training 
+        self.training = Training 
         self.trial_nr = 1
         self.InputNoise = InputNoise
         self.TargetThreshold = TargetThreshold
+        self.ThresholdDelay = ThresholdDelay
 
         # Binary Rewards for incorrect and correct
-        self.rewards = {'incorrect': 0., 'correct': +1.}
-        if rewards:
-            self.rewards.update(rewards)     
+        self.rewards = {'incorrect': 0., 'correct': +1.}    
 
-        self.timing = { 
-            'cue': 50,
-            'set': 100}
-            
-        if timing:
-            self.timing.update(timing)
-
-        self.abort = False
         # Set Action and Observation Space
         # Allow Ramping between 0-1
         self.action_space = spaces.Box(0, 1, shape=(1,), dtype=np.float32)   
@@ -166,7 +162,7 @@ class CSG_SL_Numpy(ngym.TrialEnv):
                 self.performance = 1
                 self.TimeAfterThreshold += 1
 
-                if self.TimeAfterThreshold >= 100: # Give reward 100 steps after Success
+                if self.TimeAfterThreshold >= self.ThresholdDelay: # Give reward 100 steps after Success
                     # new_trial = True
                     self.ThresholdReward = False
 
@@ -179,11 +175,13 @@ class CSG_SL_Numpy(ngym.TrialEnv):
         return ob, reward, new_trial, {
             'new_trial': new_trial, 
             'gt': gt, 
-            'Burn_WaitTime': self.waitTime+self.burn, 
+            'SetStart': self.waitTime+self.burn, 
             'Interval': trial['production'], 
-            'ThresholdDelay': 100}
+            'ThresholdDelay': self.ThresholdDelay}
 
 class CSG_SL_JAX(ngym.TrialEnv):
+    # CSG with Superised Learning with JAX:
+        # To export the observation space and ground truth
     """Agents have to produce different time intervals
     using different effectors (actions).
 
@@ -199,8 +197,11 @@ class CSG_SL_JAX(ngym.TrialEnv):
         'tags': ['timing', 'go-no-go', 'supervised']
     }
 
-    def __init__(self, dt=1, rewards=None, timing=None, training=False, InputNoise=None, TargetThreshold=0.01, Scenario=None):
+    def __init__(self, dt=1, params = None):
         super().__init__(dt=dt)
+        # Unpack Parameters
+        Training, InputNoise, TargetThreshold, ThresholdDelay, Scenario = params
+
         self.production_ind = jnp.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         self.scenario = Scenario
         self.intervals = jnp.array([720., 760., 800., 840., 880., 1420., 1460., 1500., 1540., 1580.])
@@ -211,30 +212,20 @@ class CSG_SL_JAX(ngym.TrialEnv):
         # self.weberFraction = float((100-50)/(1500-800))
         # self.prod_margin = self.weberFraction
 
-        self.training = training 
+        self.training = Training 
         self.trial_nr = 1
         self.InputNoise = InputNoise
         self.TargetThreshold = TargetThreshold
+        self.ThresholdDelay = ThresholdDelay
 
         # Binary Rewards for incorrect and correct
-        self.rewards = {'incorrect': 0., 'correct': +1.}
-        if rewards:
-            self.rewards.update(rewards)     
+        self.rewards = {'incorrect': 0., 'correct': +1.}   
 
-        self.timing = { 
-            'cue': 50,
-            'set': 100}
-            
-        if timing:
-            self.timing.update(timing)
-
-        self.abort = False
         # Set Action and Observation Space
         # Allow Ramping between 0-1
         self.action_space = spaces.Box(0, 1, shape=(1,), dtype=np.float32)   
         # Context Cue: Burn Time followed by Cue & Set Cue: Wait followed by Set Spike
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(2,), dtype=np.float32)
-
     
     def _new_trial(self, **kwargs):
         # Define Times
@@ -348,7 +339,7 @@ class CSG_SL_JAX(ngym.TrialEnv):
                 self.performance = 1
                 self.TimeAfterThreshold += 1
 
-                if self.TimeAfterThreshold >= 100: # Give reward 100 steps after Success
+                if self.TimeAfterThreshold >= self.ThresholdDelay: # Give reward 100 steps after Success
                     # new_trial = True
                     self.ThresholdReward = False
 
@@ -361,6 +352,6 @@ class CSG_SL_JAX(ngym.TrialEnv):
         return ob, reward, new_trial, {
             'new_trial': new_trial, 
             'gt': gt, 
-            'Burn_WaitTime': self.waitTime+self.burn, 
+            'SetStart': self.waitTime+self.burn, 
             'Interval': trial['production'], 
-            'ThresholdDelay': 100}
+            'ThresholdDelay': self.ThresholdDelay}
