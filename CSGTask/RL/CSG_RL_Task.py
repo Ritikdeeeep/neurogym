@@ -7,7 +7,7 @@ import numpy as np
 import neurogym as ngym
 from neurogym import spaces
 
-class CSG_RL(ngym.TrialEnv):
+class MotorTiming_CSG_RL(ngym.TrialEnv):
     # CSG with Reinforcement Learning:
         # To use with stable baselines
         # Different versions:
@@ -62,7 +62,6 @@ class CSG_RL(ngym.TrialEnv):
 
     def _new_trial(self, **kwargs):
         # Define Times
-        self.trialDuration = 3500 # Total Trial Duration
         self.waitTime = int(self.rng.uniform(100, 200)) # Random wait time between burn and set
         self.burn = 50 # Duration of Burn period before context cue
         self.set = 20 # Duration of Set Period
@@ -83,6 +82,9 @@ class CSG_RL(ngym.TrialEnv):
 
         # Select corresponding interval length
         trial['production'] = self.intervals[trial['production_ind']]
+
+        # Calculate Trial Duration
+        self.trialDuration = self.burn + self.waitTime + self.set + trial['production'] + self.ThresholdDelay
 
         # Calculate corresponding context cue magnitude (Signal + 0.5% Noise)
         contextSignal = self.context_mag[trial['production_ind']]
@@ -159,7 +161,6 @@ class CSG_RL(ngym.TrialEnv):
 
                 if eps <= eps_threshold: # If Difference is below Margin, Finish Trial
                     reward = self.rewards['correct']
-                    new_trial = True
                     self.ThresholdReward = True
                 # else:
                 #     reward = self.rewards['wrong']
@@ -172,9 +173,6 @@ class CSG_RL(ngym.TrialEnv):
                 if self.TimeAfterThreshold >= self.ThresholdDelay: # Give reward 100 steps after Success
                     new_trial = True
                     self.ThresholdReward = False
-        
-        # if self.t >= 3500:
-        #     new_trial = True
 
         if new_trial == True:
             self.trial_nr += 1

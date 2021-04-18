@@ -422,7 +422,7 @@ class TrialEnv(BaseEnv):
 
     @property
     def ob_now(self):
-        return OBNOW
+        return self.ob[self.t_ind]
 
     @property
     def gt_now(self):

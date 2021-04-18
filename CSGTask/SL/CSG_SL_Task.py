@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import neurogym as ngym
 from neurogym import spaces
 
-class CSG_SL_NP(ngym.TrialEnv):
+class MotorTiming_CSG_SL_NP(ngym.TrialEnv):
     # CSG with Superised Learning with Numpy:
         # To export the observation space and ground truth
     """Agents have to produce different time intervals
@@ -60,7 +60,6 @@ class CSG_SL_NP(ngym.TrialEnv):
     
     def _new_trial(self, **kwargs):
         # Define Times
-        self.trialDuration = 3500
         self.waitTime = int(self.rng.uniform(100, 200))
         self.burn = 50
         self.set = 20
@@ -86,6 +85,9 @@ class CSG_SL_NP(ngym.TrialEnv):
 
         # Select corresponding interval
         trial['production'] = self.intervals[trial['production_ind']]
+
+        # Calculate Trial Duration
+        self.trialDuration = self.burn + self.waitTime + self.set + trial['production'] + self.ThresholdDelay
 
         # Select corresponding context cue (Signal + 0.5% Noise)
         contextSignal = self.context_mag[trial['production_ind']]
@@ -163,12 +165,9 @@ class CSG_SL_NP(ngym.TrialEnv):
                 self.TimeAfterThreshold += 1
 
                 if self.TimeAfterThreshold >= self.ThresholdDelay: # Give reward 100 steps after Success
-                    # new_trial = True
+                    new_trial = True
                     self.ThresholdReward = False
 
-            if self.t >= 3499:
-                new_trial = True
-                
         if new_trial == True:
             self.trial_nr += 1
 
@@ -179,7 +178,7 @@ class CSG_SL_NP(ngym.TrialEnv):
             'Interval': trial['production'], 
             'ThresholdDelay': self.ThresholdDelay}
 
-class CSG_SL_JAX(ngym.TrialEnv):
+class MotorTiming_CSG_SL_JAX(ngym.TrialEnv):
     # CSG with Superised Learning with JAX:
         # To export the observation space and ground truth
     """Agents have to produce different time intervals
@@ -229,7 +228,6 @@ class CSG_SL_JAX(ngym.TrialEnv):
     
     def _new_trial(self, **kwargs):
         # Define Times
-        self.trialDuration = 3500
         self.waitTime = int(self.rng.uniform(100, 200))
         self.burn = 50
         self.set = 20
@@ -255,6 +253,9 @@ class CSG_SL_JAX(ngym.TrialEnv):
 
         # Select corresponding interval
         trial['production'] = self.intervals[trial['production_ind']]
+
+        # Calculate Trial Duration
+        self.trialDuration = self.burn + self.waitTime + self.set + trial['production'] + self.ThresholdDelay
 
         # Select corresponding context cue (Signal + 0.5% Noise)
         contextSignal = self.context_mag[trial['production_ind']]
@@ -340,11 +341,8 @@ class CSG_SL_JAX(ngym.TrialEnv):
                 self.TimeAfterThreshold += 1
 
                 if self.TimeAfterThreshold >= self.ThresholdDelay: # Give reward 100 steps after Success
-                    # new_trial = True
+                    new_trial = True
                     self.ThresholdReward = False
-
-            if self.t >= 3499:
-                new_trial = True
                 
         if new_trial == True:
             self.trial_nr += 1
