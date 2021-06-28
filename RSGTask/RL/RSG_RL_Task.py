@@ -31,7 +31,7 @@ class MotorTiming_RSG_RL_Complex(ngym.TrialEnv):
         # Several different intervals with their corresponding their length 
         self.production_ind = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
         self.intervals = [480, 560, 640, 720, 800, 800, 900, 1000, 1100, 1200] 
-        # Possible Context Cues:
+        # Possible Context Cues (Short/Long):
         self.context_mag = [0.3, 0.4]
         
         # WeberFraction as the production margin (acceptable deviation)
@@ -41,10 +41,10 @@ class MotorTiming_RSG_RL_Complex(ngym.TrialEnv):
 
         self.training = Training # Training Label
         self.trial_nr = 1 # Trial Counter
-        self.InputNoise = InputNoise # Input Noise Percentage
-        self.TargetThreshold = TargetThreshold # Target Threshold Percentage
-        self.ThresholdDelay = ThresholdDelay
-        self.TargetRamp = TargetRamp
+        self.input_noise = InputNoise # Input Noise Percentage
+        self.target_threshold = TargetThreshold # Target Threshold Percentage, Later becomes WeberFraction
+        self.threshold_delay = ThresholdDelay
+        self.target_ramp = TargetRamp
 
         # Binary Rewards for incorrect and correct
         self.rewards = {'incorrect': 0., 'correct': +1.}    
@@ -52,14 +52,19 @@ class MotorTiming_RSG_RL_Complex(ngym.TrialEnv):
         # Set Action and Observation Space
         # Allow Ramping between 0-1
         self.action_space = spaces.Box(0, 1, shape=(1,), dtype=np.float32)   
-        # Context Cue: Burn Time followed by Cue & Ready-Set Cue: Wait followed by Ready-Set Spike
+        # Context Cue: Burn Time followed by Cue
+        # Ready-Set Cue: Burn+Wait followed by Ready-Set Spike
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(2,), dtype=np.float32)
 
-    def _new_trial(self, **kwargs):
+    def _new_trial(self, Scenario=None, WaitTime=None, **kwargs):
         # Define Times
-        self.waitTime = int(self.rng.uniform(100, 200))
+        if WaitTime is not None:
+            self.wait_time = WaitTime
+        else:
+            self.wait_time = int(self.rng.uniform(100, 200))
         self.burn = 50
-        self.spike = 10
+        self.spike = 20
+        self.BP_Delay = 1000
 
         # Choose index (0-9) at Random
         if self.training == False:
@@ -72,33 +77,37 @@ class MotorTiming_RSG_RL_Complex(ngym.TrialEnv):
             trial = {
                 'production_ind': self.production_ind[(self.trial_nr % len(self.production_ind))-1]
             }
-
-        trial.update(kwargs)
+        
+        # Choose given Scenario
+        if Scenario is not None:
+            trial = {
+                'production_ind': Scenario
+            }
 
         # Select corresponding interval
         trial['production'] = self.intervals[trial['production_ind']]
 
         # Calculate Trial Duration
-        self.trialDuration = self.burn + self.waitTime + self.spike + trial['production'] + self.spike + trial['production'] + self.ThresholdDelay
+        self.trial_duration = self.burn + self.wait_time + self.spike + trial['production'] + self.spike + trial['production'] + self.threshold_delay + self.BP_Delay
 
-        # Select corresponding context cue (Signal + 0.5% Noise)
-        if trial['production_ind'] <= 4:
+        # Select corresponding context cue (Signal + InputNoise)
+        if trial['production_ind'] < 5:
             contextSignal = self.context_mag[0]
         else:
             contextSignal = self.context_mag[1]
 
-        noiseSigmaContext = contextSignal * self.InputNoise
-        contextNoise = np.random.normal(0, noiseSigmaContext, (self.trialDuration-self.burn))
+        noiseSigmaContext = contextSignal * self.input_noise
+        contextNoise = np.random.normal(0, noiseSigmaContext, (self.trial_duration-self.burn-self.BP_Delay))
         contextCue = contextSignal + contextNoise
 
         # Define periods
         self.add_period('burn', duration= self.burn)
-        self.add_period('cue', duration= self.trialDuration-self.burn, after='burn')
-        self.add_period('wait', duration= self.waitTime, after='burn')
+        self.add_period('cue', duration= self.trial_duration-self.burn-self.BP_Delay, after='burn')
+        self.add_period('wait', duration= self.wait_time, after='burn')
         self.add_period('ready', duration= self.spike, after='wait')
         self.add_period('estimation', duration= trial['production'], after='ready')
         self.add_period('set', duration= self.spike, after='estimation')
-        self.add_period('production', duration=self.trialDuration-(self.spike+trial['production']+self.spike+self.waitTime+self.burn), after='set')
+        self.add_period('production', duration=self.trial_duration-(self.BP_Delay+self.spike+trial['production']+self.spike+self.wait_time+self.burn), after='set')
 
         # Set Burn to 0
         ob = self.view_ob('burn')
@@ -129,93 +138,79 @@ class MotorTiming_RSG_RL_Complex(ngym.TrialEnv):
         ob = self.view_ob('production')
         ob[:, 1] = 0
 
-        # Set Ground Truth as 0 at Set and 1 at trial production with Ramp inbetween
-        gt = np.empty([int((self.trialDuration/self.dt)),])
+        ob = self.view_ob()
+
+        # Set Ground Truth as 0 at Set and 1 at Trial Production with NaN or Ramp inbetween
+        gt = np.empty([int(((self.trial_duration-self.BP_Delay)/self.dt)),])
         gt[:] = np.nan
-        gt[self.burn+self.waitTime+self.spike+trial['production']:self.burn+self.waitTime+self.spike+trial['production']+self.spike] = 0
-        if self.TargetRamp == True:
+        gt[self.burn+self.wait_time+self.spike+trial['production']:self.burn+self.wait_time+self.spike+trial['production']+self.spike] = 0
+        if self.target_ramp == True:
             t_ramp = range(0, int(trial['production']))
             gt_ramp = np.multiply(1/trial['production'], t_ramp)
-            gt[self.burn+self.waitTime+self.spike+trial['production']+self.spike:self.burn+self.waitTime+self.spike+trial['production']+self.spike+trial['production']] = gt_ramp
+            gt[self.burn+self.wait_time+self.spike+trial['production']+self.spike:self.burn+self.wait_time+self.spike+trial['production']+self.spike+trial['production']] = gt_ramp
 
-        gt[self.burn+self.waitTime+self.spike+trial['production']+self.spike+trial['production']:-1] = 1
-        gt = np.reshape(gt, [int(self.trialDuration/self.dt)] + list(self.action_space.shape))
+        gt[self.burn+self.wait_time+self.spike+trial['production']+self.spike+trial['production']:self.trial_duration-self.BP_Delay] = 1
+        gt = np.reshape(gt, [int((self.trial_duration-self.BP_Delay)/self.dt)] + list(self.action_space.shape))
         self.set_groundtruth(gt)
 
-        return trial
+        return trial, ob, gt
 
     def _step(self, action):
         trial = self.trial
         reward = 0
         ob = self.ob_now
         gt = self.gt_now
-        new_trial = False
+        NewTrial = False
 
         if self.in_period('burn'):
-            self.SetReward = False
-            self.ReadyReward = False
-            self.EstReward = False
-            self.ThresholdReward = False
-            self.TimeAfterThreshold = 0
-
-        if self.in_period('ready'):
-            if action <= 0.05: # Should start close to 0
-                reward = self.rewards['correct']
-                self.ReadyReward = True
-
-            if self.ReadyReward:
-                reward = self.rewards['correct']
-                self.performance = 1
-
-        if self.in_period('estimation'):
-            if action <= 0.05: # Should start close to 0
-                reward = self.rewards['correct']
-                self.EstReward = True
-
-            if self.EstReward:
-                reward = self.rewards['correct']
-                self.performance = 1
+            self.set_reward = False
+            self.threshold_reward = False
+            self.t_threshold = 0
 
         if self.in_period('set'):
             if action <= 0.05: # Should start close to 0
                 reward = self.rewards['correct']
-                self.SetReward = True
+                self.set_reward = True
 
-            if self.SetReward:
+            if self.set_reward:
                 reward = self.rewards['correct']
                 self.performance = 1
 
         if self.in_period('production'):
-            if  action >= 0.90: # Action is over Threshold
+            if  action >= 0.95: # Action is over Threshold
                 t_prod = self.t - self.end_t['set']  # Measure Time from Set
-                eps = abs(t_prod - trial['production']) # Difference between Produced_Interval and Interval
-                eps_threshold = int(trial['production']*self.TargetThreshold) # Allowed margin to produced interval
+                eps = abs(t_prod - trial[0]['production']) # Difference between Produced_Interval and Interval
+                eps_threshold = int(trial[0]['production']*self.target_threshold) # Allowed margin to produced interval
 
                 if eps <= eps_threshold: # If Difference is below Margin, Finish Trial
                     reward = self.rewards['correct']
-                    self.ThresholdReward = True
+                    self.threshold_reward = True
 
-            if self.ThresholdReward == True:
+            if self.threshold_reward == True:
                 reward = self.rewards['correct']
                 self.performance = 1
-                self.TimeAfterThreshold += 1
+                self.t_threshold += 1
 
-                if self.TimeAfterThreshold >= self.ThresholdDelay: # Give reward 100 steps after Success
-                    new_trial = True
-                    self.ThresholdReward = False
+                if self.t_threshold >= self.threshold_delay: # Give reward ThresholDelay steps after Success
+                    NewTrial = True
+                    self.threshold_reward = False
 
-        if new_trial == True:
+            if self.t > self.trial_duration:
+                NewTrial = True
+
+        if NewTrial == True:
             self.trial_nr += 1
 
-        return ob, reward, new_trial, {
-            'new_trial': new_trial, 
-            'gt': gt, 
-            'SetStart': self.spike+trial['production']+self.spike+self.waitTime+self.burn, 
-            'Interval': trial['production']
+        return ob, reward, NewTrial, {
+            'new_trial': NewTrial, 
+            'TrialDuration': self.trial_duration,
+            'gt': gt,
+            'Interval': trial[0]['production'],
+            'SetStart': self.spike+trial[0]['production']+self.spike+self.wait_time+self.burn,
             }
 
 class MotorTiming_RSG_RL_Simple(ngym.TrialEnv):
-    # RSG with Reinforcement Learning using Single Context Cue:
+    # RSG with Reinforcement Learning:
     """Agents have to produce different time intervals
     using different effectors (actions).
 
@@ -237,9 +232,9 @@ class MotorTiming_RSG_RL_Simple(ngym.TrialEnv):
         Training, InputNoise, TargetThreshold, ThresholdDelay, TargetRamp = params
 
         # Several different intervals with their corresponding their length 
-        self.production_ind = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
-        self.intervals = [480, 560, 640, 720, 800, 800, 900, 1000, 1100, 1200] 
-        # Possible Context Cues:
+        self.production_ind = [0, 1, 2, 3, 4] 
+        self.intervals = [480, 560, 640, 720, 800]
+        # Possible Context Cues (Short/Long):
         self.context_mag = 0.3
         
         # WeberFraction as the production margin (acceptable deviation)
@@ -249,10 +244,10 @@ class MotorTiming_RSG_RL_Simple(ngym.TrialEnv):
 
         self.training = Training # Training Label
         self.trial_nr = 1 # Trial Counter
-        self.InputNoise = InputNoise # Input Noise Percentage
-        self.TargetThreshold = TargetThreshold # Target Threshold Percentage
-        self.ThresholdDelay = ThresholdDelay
-        self.TargetRamp = TargetRamp
+        self.input_noise = InputNoise # Input Noise Percentage
+        self.target_threshold = TargetThreshold # Target Threshold Percentage, Later becomes WeberFraction
+        self.threshold_delay = ThresholdDelay
+        self.target_ramp = TargetRamp
 
         # Binary Rewards for incorrect and correct
         self.rewards = {'incorrect': 0., 'correct': +1.}    
@@ -260,14 +255,19 @@ class MotorTiming_RSG_RL_Simple(ngym.TrialEnv):
         # Set Action and Observation Space
         # Allow Ramping between 0-1
         self.action_space = spaces.Box(0, 1, shape=(1,), dtype=np.float32)   
-        # Context Cue: Burn Time followed by Cue & Ready-Set Cue: Wait followed by Ready-Set Spike
+        # Context Cue: Burn Time followed by Cue
+        # Ready-Set Cue: Burn+Wait followed by Ready-Set Spike
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(2,), dtype=np.float32)
 
-    def _new_trial(self, **kwargs):
+    def _new_trial(self, Scenario=None, WaitTime=None, **kwargs):
         # Define Times
-        self.waitTime = int(self.rng.uniform(100, 200))
+        if WaitTime is not None:
+            self.wait_time = WaitTime
+        else:
+            self.wait_time = int(self.rng.uniform(100, 200))
         self.burn = 50
-        self.spike = 10
+        self.spike = 20
+        self.BP_Delay = 1000
 
         # Choose index (0-9) at Random
         if self.training == False:
@@ -280,29 +280,33 @@ class MotorTiming_RSG_RL_Simple(ngym.TrialEnv):
             trial = {
                 'production_ind': self.production_ind[(self.trial_nr % len(self.production_ind))-1]
             }
-
-        trial.update(kwargs)
+        
+        # Choose given Scenario
+        if Scenario is not None:
+            trial = {
+                'production_ind': Scenario
+            }
 
         # Select corresponding interval
         trial['production'] = self.intervals[trial['production_ind']]
 
         # Calculate Trial Duration
-        self.trialDuration = self.burn + self.waitTime + self.spike + trial['production'] + self.spike + trial['production'] + self.ThresholdDelay
+        self.trial_duration = self.burn + self.wait_time + self.spike + trial['production'] + self.spike + trial['production'] + self.threshold_delay + self.BP_Delay
 
-        # Select corresponding context cue (Signal + 0.5% Noise)
+        # Select corresponding context cue (Signal + InputNoise)
         contextSignal = self.context_mag
-        noiseSigmaContext = contextSignal * self.InputNoise
-        contextNoise = np.random.normal(0, noiseSigmaContext, (self.trialDuration-self.burn))
+        noiseSigmaContext = contextSignal * self.input_noise
+        contextNoise = np.random.normal(0, noiseSigmaContext, (self.trial_duration-self.burn-self.BP_Delay))
         contextCue = contextSignal + contextNoise
 
         # Define periods
         self.add_period('burn', duration= self.burn)
-        self.add_period('cue', duration= self.trialDuration-self.burn, after='burn')
-        self.add_period('wait', duration= self.waitTime, after='burn')
+        self.add_period('cue', duration= self.trial_duration-self.burn-self.BP_Delay, after='burn')
+        self.add_period('wait', duration= self.wait_time, after='burn')
         self.add_period('ready', duration= self.spike, after='wait')
         self.add_period('estimation', duration= trial['production'], after='ready')
         self.add_period('set', duration= self.spike, after='estimation')
-        self.add_period('production', duration=self.trialDuration-(self.spike+trial['production']+self.spike+self.waitTime+self.burn), after='set')
+        self.add_period('production', duration=self.trial_duration-(self.BP_Delay+self.spike+trial['production']+self.spike+self.wait_time+self.burn), after='set')
 
         # Set Burn to 0
         ob = self.view_ob('burn')
@@ -333,87 +337,73 @@ class MotorTiming_RSG_RL_Simple(ngym.TrialEnv):
         ob = self.view_ob('production')
         ob[:, 1] = 0
 
-        # Set Ground Truth as 0 at Set and 1 at trial production with Ramp inbetween
-        gt = np.empty([int((self.trialDuration/self.dt)),])
+        ob = self.view_ob()
+
+        # Set Ground Truth as 0 at Set and 1 at Trial Production with NaN or Ramp inbetween
+        gt = np.empty([int(((self.trial_duration-self.BP_Delay)/self.dt)),])
         gt[:] = np.nan
-        gt[self.burn+self.waitTime+self.spike+trial['production']:self.burn+self.waitTime+self.spike+trial['production']+self.spike] = 0
-        if self.TargetRamp == True:
+        gt[self.burn+self.wait_time+self.spike+trial['production']:self.burn+self.wait_time+self.spike+trial['production']+self.spike] = 0
+        if self.target_ramp == True:
             t_ramp = range(0, int(trial['production']))
             gt_ramp = np.multiply(1/trial['production'], t_ramp)
-            gt[self.burn+self.waitTime+self.spike+trial['production']+self.spike:self.burn+self.waitTime+self.spike+trial['production']+self.spike+trial['production']] = gt_ramp
+            gt[self.burn+self.wait_time+self.spike+trial['production']+self.spike:self.burn+self.wait_time+self.spike+trial['production']+self.spike+trial['production']] = gt_ramp
 
-        gt[self.burn+self.waitTime+self.spike+trial['production']+self.spike+trial['production']:-1] = 1
-        gt = np.reshape(gt, [int(self.trialDuration/self.dt)] + list(self.action_space.shape))
+        gt[self.burn+self.wait_time+self.spike+trial['production']+self.spike+trial['production']:self.trial_duration-self.BP_Delay] = 1
+        gt = np.reshape(gt, [int((self.trial_duration-self.BP_Delay)/self.dt)] + list(self.action_space.shape))
         self.set_groundtruth(gt)
 
-        return trial
+        return trial, ob, gt
 
     def _step(self, action):
         trial = self.trial
         reward = 0
         ob = self.ob_now
         gt = self.gt_now
-        new_trial = False
+        NewTrial = False
 
         if self.in_period('burn'):
-            self.SetReward = False
-            self.ReadyReward = False
-            self.EstReward = False
-            self.ThresholdReward = False
-            self.TimeAfterThreshold = 0
-
-        if self.in_period('ready'):
-            if action <= 0.05: # Should start close to 0
-                reward = self.rewards['correct']
-                self.ReadyReward = True
-
-            if self.ReadyReward:
-                reward = self.rewards['correct']
-                self.performance = 1
-
-        if self.in_period('estimation'):
-            if action <= 0.05: # Should start close to 0
-                reward = self.rewards['correct']
-                self.EstReward = True
-
-            if self.EstReward:
-                reward = self.rewards['correct']
-                self.performance = 1
+            self.set_reward = False
+            self.threshold_reward = False
+            self.t_threshold = 0
 
         if self.in_period('set'):
             if action <= 0.05: # Should start close to 0
                 reward = self.rewards['correct']
-                self.SetReward = True
+                self.set_reward = True
 
-            if self.SetReward:
+            if self.set_reward:
                 reward = self.rewards['correct']
                 self.performance = 1
 
         if self.in_period('production'):
-            if  action >= 0.90: # Action is over Threshold
+            if  action >= 0.95: # Action is over Threshold
                 t_prod = self.t - self.end_t['set']  # Measure Time from Set
-                eps = abs(t_prod - trial['production']) # Difference between Produced_Interval and Interval
-                eps_threshold = int(trial['production']*self.TargetThreshold) # Allowed margin to produced interval
+                eps = abs(t_prod - trial[0]['production']) # Difference between Produced_Interval and Interval
+                eps_threshold = int(trial[0]['production']*self.target_threshold) # Allowed margin to produced interval
 
                 if eps <= eps_threshold: # If Difference is below Margin, Finish Trial
                     reward = self.rewards['correct']
-                    self.ThresholdReward = True
+                    self.threshold_reward = True
 
-            if self.ThresholdReward == True:
+            if self.threshold_reward == True:
                 reward = self.rewards['correct']
                 self.performance = 1
-                self.TimeAfterThreshold += 1
+                self.t_threshold += 1
 
-                if self.TimeAfterThreshold >= self.ThresholdDelay: # Give reward 100 steps after Success
-                    new_trial = True
-                    self.ThresholdReward = False
+                if self.t_threshold >= self.threshold_delay: # Give reward ThresholDelay steps after Success
+                    NewTrial = True
+                    self.threshold_reward = False
 
-        if new_trial == True:
+            if self.t > self.trial_duration:
+                NewTrial = True
+
+        if NewTrial == True:
             self.trial_nr += 1
 
-        return ob, reward, new_trial, {
-            'new_trial': new_trial, 
-            'gt': gt, 
-            'SetStart': self.spike+trial['production']+self.spike+self.waitTime+self.burn, 
-            'Interval': trial['production']
+        return ob, reward, NewTrial, {
+            'new_trial': NewTrial, 
+            'TrialDuration': self.trial_duration,
+            'gt': gt,
+            'Interval': trial[0]['production'],
+            'SetStart': self.spike+trial[0]['production']+self.spike+self.wait_time+self.burn,
             }
